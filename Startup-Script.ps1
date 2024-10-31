@@ -105,7 +105,7 @@ Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
 # Download and install ClamAV
 $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
 Write-Host "Downloading ClamAV installer..."
-Invoke-WebRequest -Uri "https://www.clamav.net/downloads/production/clamav-0.103.6-win-x64.msi" -OutFile $clamavInstallerPath
+Invoke-WebRequest -Uri "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -OutFile $clamavInstallerPath
 
 Write-Host "Installing ClamAV..."
 Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
@@ -122,7 +122,7 @@ schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamsc
 # Download and install Wazuh Agent (includes OSSEC functionality)
 $wazuhInstallerPath = "$env:TEMP\wazuh-agent-4.3.10.msi"
 Write-Host "Downloading Wazuh Agent installer..."
-Invoke-WebRequest -Uri "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.3.10-1.msi" -OutFile $wazuhInstallerPath
+Invoke-WebRequest -Uri "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi" -OutFile $wazuhInstallerPath
 
 Write-Host "Installing Wazuh Agent..."
 Start-Process -FilePath $wazuhInstallerPath -ArgumentList "/quiet /norestart" -Wait
