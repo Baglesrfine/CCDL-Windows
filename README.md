@@ -24,6 +24,9 @@ After downloading, run each script in a PowerShell session with administrator pr
   - Disabling guest accounts
   - Configuring Windows Defender, Windows Firewall, and audit policies
   - Disabling unnecessary services and IPv6
+  - Downloads and installs Firefox, providing a secure alternative to Internet Explorer
+  - Downloads and installs ClamAV, a free and open-source antivirus tool. It schedules daily scans for malware protection and updates ClamAV settings to log scan results.
+  - Downloads and installs and configures the Wazuh (OSSEC) Agent in local mode for host-based monitoring without an external server connection. This enables basic system monitoring on Windows servers.
 
 **Usage:**
 
@@ -33,33 +36,33 @@ After downloading, run each script in a PowerShell session with administrator pr
 
 ---
 
-### 2. Firefox-Install.ps1
-**Purpose:** This script downloads and installs Firefox, providing a secure alternative to Internet Explorer on Windows systems.
+### 2. future-script.ps1
+**Purpose:** This is a future script
 
 **Usage:**
 
 ```bash
-.\Firefox-Install.ps1
+.\future-script.ps1
 ```
 
 ---
 
-### 3. ClamAV-Install.ps1
-**Purpose:** This script installs ClamAV, a free and open-source antivirus tool. It schedules daily scans for malware protection and updates ClamAV settings to log scan results.
+### 3. future-script.ps1
+**Purpose:** This is a future script
 
 **Usage:**
 
 ```bash
-.\ClamAV-Install.ps1
+.\future-script.ps1
 ```
 
 ---
 
-### 4. Wazuh-Agent-Local.ps1
-**Purpose:** Installs and configures the Wazuh (OSSEC) Agent in local mode for host-based monitoring without an external server connection. This enables basic system monitoring on Windows servers.
+### 4. future-script.ps1
+**Purpose:** This is a future script
 
 **Usage:**
 
 ```bash
-.\Wazuh-Agent-Local.ps1
+.\future-script.ps1
 ```
