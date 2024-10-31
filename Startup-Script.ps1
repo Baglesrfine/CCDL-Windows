@@ -88,6 +88,9 @@ Set-Service -Name wuauserv -StartupType Automatic
 Write-Host "Checking for Windows updates..."
 Install-WindowsUpdate -AcceptAll 
 
+
+# FIREFOX
+
 # Download and install Firefox
 $firefoxInstallerPath = "$env:TEMP\FirefoxInstaller.exe"
 Write-Host "Downloading Firefox installer..."
@@ -95,6 +98,7 @@ Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest&os=
 
 Write-Host "Installing Firefox..."
 Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
+
 
 # CLAM AV
 
@@ -111,6 +115,7 @@ Write-Host "Scheduling ClamAV scans..."
 $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
 Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
 schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
+
 
 # Wazuh (OSSEC)
 

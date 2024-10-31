@@ -1,2 +1,65 @@
-# CCDL-Windows
- Windows Script Repository for UW-Stout CCDL Team 2024 
+# UW-Stout CCDL - Windows Security Scripts
+
+This repository contains a collection of PowerShell scripts designed by the UW-Stout Collegiate Cyber Defense League (CCDL) - Windows Team. Each script automates essential security tasks and configurations for Windows Server environments. These scripts are aimed at improving baseline security and can be used individually or as part of a comprehensive hardening process.
+
+## Getting Started
+
+To run these scripts, simply download the repository or individual scripts using `wget`:
+
+```bash
+wget https://github.com/Baglesrfine/CCDL-Windows/Startup-Script.ps1 -OutFile Startup-Script.ps1
+```
+
+After downloading, run each script in a PowerShell session with administrator privileges to ensure all configurations are applied correctly.
+
+---
+
+## Scripts Overview
+
+### 1. Startup-Script.ps1
+**Purpose:** This script performs essential security hardening tasks on Windows systems. It includes functions such as:
+  - Synchronizing the system time
+  - Changing and renaming the local administrator account
+  - Enforcing password policies
+  - Disabling guest accounts
+  - Configuring Windows Defender, Windows Firewall, and audit policies
+  - Disabling unnecessary services and IPv6
+
+**Usage:**
+
+```bash
+.\Startup-Script.ps1
+```
+
+---
+
+### 2. Firefox-Install.ps1
+**Purpose:** This script downloads and installs Firefox, providing a secure alternative to Internet Explorer on Windows systems.
+
+**Usage:**
+
+```bash
+.\Firefox-Install.ps1
+```
+
+---
+
+### 3. ClamAV-Install.ps1
+**Purpose:** This script installs ClamAV, a free and open-source antivirus tool. It schedules daily scans for malware protection and updates ClamAV settings to log scan results.
+
+**Usage:**
+
+```bash
+.\ClamAV-Install.ps1
+```
+
+---
+
+### 4. Wazuh-Agent-Local.ps1
+**Purpose:** Installs and configures the Wazuh (OSSEC) Agent in local mode for host-based monitoring without an external server connection. This enables basic system monitoring on Windows servers.
+
+**Usage:**
+
+```bash
+.\Wazuh-Agent-Local.ps1
+```
