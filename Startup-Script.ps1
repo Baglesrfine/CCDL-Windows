@@ -73,7 +73,7 @@ Get-SmbShare | Where-Object { $_.Name -ne "ADMIN$" -and $_.Name -ne "C$" } | For
     Remove-SmbShare -Name $_.Name -Force
 }
 
-# Enable Windows Firewall (reaffirm if previously configured)
+# Reaffirm Windows Firewall enabled
 Write-Host "Reaffirming Windows Firewall enabled..."
 Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
 
@@ -88,13 +88,12 @@ Set-Service -Name wuauserv -StartupType Automatic
 Write-Host "Checking for Windows updates..."
 Install-WindowsUpdate -AcceptAll 
 
-
 # FIREFOX
 
 # Download and install Firefox
 $firefoxInstallerPath = "$env:TEMP\FirefoxInstaller.exe"
 Write-Host "Downloading Firefox installer..."
-Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US" -OutFile $firefoxInstallerPath
+Start-BitsTransfer -Source "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US" -Destination $firefoxInstallerPath
 
 Write-Host "Installing Firefox..."
 Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
@@ -105,7 +104,7 @@ Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
 # Download and install ClamAV
 $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
 Write-Host "Downloading ClamAV installer..."
-Invoke-WebRequest -Uri "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -OutFile $clamavInstallerPath
+Start-BitsTransfer -Source "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -Destination $clamavInstallerPath
 
 Write-Host "Installing ClamAV..."
 Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
@@ -122,7 +121,7 @@ schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamsc
 # Download and install Wazuh Agent (includes OSSEC functionality)
 $wazuhInstallerPath = "$env:TEMP\wazuh-agent-4.3.10.msi"
 Write-Host "Downloading Wazuh Agent installer..."
-Invoke-WebRequest -Uri "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi" -OutFile $wazuhInstallerPath
+Start-BitsTransfer -Source "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi" -Destination $wazuhInstallerPath
 
 Write-Host "Installing Wazuh Agent..."
 Start-Process -FilePath $wazuhInstallerPath -ArgumentList "/quiet /norestart" -Wait
@@ -143,4 +142,4 @@ Write-Host "Performing a quick scan with Windows Defender..."
 Start-MpScan -ScanType QuickScan
 
 Write-Host "Basic security checks and configurations are complete."
-Write-Host "Please review if there are Windows updates available and install them and Restart the system."
+Write-Host "Please review if there are Windows updates available, install them, and restart the system."
