@@ -115,27 +115,51 @@ $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
 Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
 schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
 
+# # WIRESHARK
 
-# Wazuh (OSSEC)
+# # Download and install Wireshark
+$wiresharkIntallerPath = "$env:TEMP\Wireshark-4.4.1-x64.exe"
+Write-Host "Downloading Wireshark..."
+Start-BitsTransfer -Source "https://2.na.dl.wireshark.org/win64/Wireshark-4.4.1-x64.exe" -Destination $wiresharkIntallerPath
 
-# Download and install Wazuh Agent (includes OSSEC functionality)
-$wazuhInstallerPath = "$env:TEMP\wazuh-agent-4.3.10.msi"
-Write-Host "Downloading Wazuh Agent installer..."
-Start-BitsTransfer -Source "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi" -Destination $wazuhInstallerPath
+Write-Host "Installing Wireshark..."
+Start-Process -FilePath $wiresharkIntallerPath -ArgumentList "/S" -Wait
 
-Write-Host "Installing Wazuh Agent..."
-Start-Process -FilePath $wazuhInstallerPath -ArgumentList "/quiet /norestart" -Wait
+# # SYSINTERNALS
+Write-Host "Downloading Sysinternals..."
+Start-BitsTransfer -Source "https://download.sysinternals.com/files/Autoruns.zip" -Destination "$env:TEMP\Autoruns.zip"
+Start-BitsTransfer -Source "https://download.sysinternals.com/files/ProcessExplorer.zip" -Destination "$env:TEMP\ProcessExplorer.zip"
+Start-BitsTransfer -Source "https://download.sysinternals.com/files/ProcessMonitor.zip" -Destination "$env:TEMP\ProcessMonitor.zip"
+Start-BitsTransfer -Source "https://download.sysinternals.com/files/TCPView.zip" -Destination "$env:TEMP\TCPView.zip"
 
-# Set Wazuh Agent to run in local mode
-Write-Host "Configuring Wazuh Agent for local mode..."
-$wazuhConfigPath = "C:\Program Files (x86)\ossec-agent\ossec.conf"
-$wazuhConfig = Get-Content $wazuhConfigPath
-$wazuhConfig = $wazuhConfig -replace '<server>.*</server>', '' # Ensure no server is specified
-Set-Content -Path $wazuhConfigPath -Value $wazuhConfig
+Write-Host "Installing  Sysinternals..."
+New-Item -Path "C:\Sysinternals" -ItemType Directory
+Expand-Archive -Path "$env:TEMP\Autoruns.zip" -DestinationPath "C:\Sysinternals"
+Expand-Archive -Path "$env:TEMP\ProcessExplorer.zip" -DestinationPath "C:\ProcessExplorer"
+Expand-Archive -Path "$env:TEMP\ProcessMonitor.zip" -DestinationPath "C:\ProcessMonitor"
+Expand-Archive -Path "$env:TEMP\TCPView.zip" -DestinationPath "C:\TCPView"
+Write-Host "Sysinternals installed to C:\Sysinternals"
 
-# Start Wazuh Agent Service
-Write-Host "Starting Wazuh Agent service in local mode..."
-Start-Service -Name WazuhSvc
+# # Wazuh (OSSEC)
+
+# # Download and install Wazuh Agent (includes OSSEC functionality)
+# $wazuhInstallerPath = "$env:TEMP\wazuh-agent-4.3.10.msi"
+# Write-Host "Downloading Wazuh Agent installer..."
+# Start-BitsTransfer -Source "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi" -Destination $wazuhInstallerPath
+
+# Write-Host "Installing Wazuh Agent..."
+# Start-Process -FilePath $wazuhInstallerPath -ArgumentList "/quiet /norestart" -Wait
+
+# # Set Wazuh Agent to run in local mode
+# Write-Host "Configuring Wazuh Agent for local mode..."
+# $wazuhConfigPath = "C:\Program Files (x86)\ossec-agent\ossec.conf"
+# $wazuhConfig = Get-Content $wazuhConfigPath
+# $wazuhConfig = $wazuhConfig -replace '<server>.*</server>', '' # Ensure no server is specified
+# Set-Content -Path $wazuhConfigPath -Value $wazuhConfig
+
+# # Start Wazuh Agent Service
+# Write-Host "Starting Wazuh Agent service in local mode..."
+# Start-Service -Name WazuhSvc
 
 
 Write-Host "Performing a quick scan with Windows Defender..."
