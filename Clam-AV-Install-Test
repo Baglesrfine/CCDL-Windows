@@ -1,7 +1,9 @@
 # Download and install ClamAV
 $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
 Write-Host "Downloading ClamAV installer..."
-Invoke-WebRequest -Uri "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -OutFile $clamavInstallerPath
+
+$webClient = New-Object System.Net.WebClient
+$webClient.DownloadFile("https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi", $clamavInstallerPath)
 
 Write-Host "Installing ClamAV..."
 Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
