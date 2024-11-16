@@ -22,8 +22,8 @@ do {
 } while ($newAdminPasswordPlain -ne $confirmAdminPasswordPlain)
 
 # Change local administrator password
-$adminAccount = Get-LocalUser -Name "Administrator"
-Set-LocalUser -Name "Administrator" -Password $newAdminPassword
+# $adminAccount = Get-LocalUser -Name "Administrator"
+# Set-LocalUser -Name "Administrator" -Password $newAdminPassword
 
 # Rename administrator account for security
 $newAdminName = Read-Host "Enter a new name for the administrator account"
