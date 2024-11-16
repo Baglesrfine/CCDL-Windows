@@ -13,10 +13,13 @@ do {
     $newAdminPassword = Read-Host -AsSecureString "Enter new password for the local administrator account"
     $confirmAdminPassword = Read-Host -AsSecureString "Confirm new password for the local administrator account"
 
-    if ($newAdminPassword -ne $confirmAdminPassword) {
+    $newAdminPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($newAdminPassword))
+    $confirmAdminPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($confirmAdminPassword))
+
+    if ($newAdminPasswordPlain -ne $confirmAdminPasswordPlain) {
         Write-Host "Passwords do not match. Please try again."
     }
-} while ($newAdminPassword -ne $confirmAdminPassword)
+} while ($newAdminPasswordPlain -ne $confirmAdminPasswordPlain)
 
 # Change local administrator password
 $adminAccount = Get-LocalUser -Name "Administrator"
