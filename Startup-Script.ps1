@@ -1,8 +1,22 @@
+# Ask the user if they want to run the setup
+$runSetup = Read-Host "Do you want to run the setup? (yes/no)"
+if ($runSetup -ne "yes") {
+    Write-Host "Skipping setup..."
+    goto installs
+}
+
 Write-Host "Synchronizing system time..."
 w32tm /resync
 
-# Prompt for new administrator password
-$newAdminPassword = Read-Host -AsSecureString "Enter new password for the local administrator account"
+# Prompt for new administrator password and confirmation
+do {
+    $newAdminPassword = Read-Host -AsSecureString "Enter new password for the local administrator account"
+    $confirmAdminPassword = Read-Host -AsSecureString "Confirm new password for the local administrator account"
+
+    if ($newAdminPassword -ne $confirmAdminPassword) {
+        Write-Host "Passwords do not match. Please try again."
+    }
+} while ($newAdminPassword -ne $confirmAdminPassword)
 
 # Change local administrator password
 $adminAccount = Get-LocalUser -Name "Administrator"
@@ -16,10 +30,6 @@ Write-Host "Administrator account renamed to $newAdminName."
 # List all user accounts
 Write-Host "Listing all user accounts:"
 Get-LocalUser | Format-Table -Property Name, Enabled, LastLogon
-$username = Read-Host -Prompt "Enter a username to disable or C to continue."
-WHILE (!($username) -eq "C"){
-    Disable-LocalUser -Name $username
-}
 
 # Disable guest account
 $guestAccount = Get-LocalUser -Name "Guest"
@@ -77,7 +87,7 @@ Get-SmbShare | Where-Object { $_.Name -ne "ADMIN$" -and $_.Name -ne "C$" } | For
     Remove-SmbShare -Name $_.Name -Force
 }
 
-# Reaffirm Windows Firewall enabled
+# Enable Windows Firewall (reaffirm if previously configured)
 Write-Host "Reaffirming Windows Firewall enabled..."
 Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
 
@@ -90,84 +100,77 @@ Set-NetIPv6Protocol -State Disabled
 Write-Host "Setting Windows Update to automatic..."
 Set-Service -Name wuauserv -StartupType Automatic
 Write-Host "Checking for Windows updates..."
-Install-WindowsUpdate -AcceptAll 
+Install-WindowsUpdate -AcceptAll
 
-# FIREFOX
+installs:
 
-# Download and install Firefox
-$firefoxInstallerPath = "$env:TEMP\FirefoxInstaller.exe"
-Write-Host "Downloading Firefox installer..."
-Start-BitsTransfer -Source "https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US" -Destination $firefoxInstallerPath
+# Ask the user if they want to run the installs
+$runInstalls = Read-Host "Do you want to run the installs? (yes/no)"
+if ($runInstalls -ne "yes") {
+    Write-Host "Skipping installs..."
+    exit
+}
 
-Write-Host "Installing Firefox..."
-Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
+# Firefox
+$installFirefox = Read-Host "Do you want to install Firefox? (yes/no)"
+if ($installFirefox -eq "yes") {
+    $firefoxInstallerPath = "$env:TEMP\FirefoxInstaller.exe"
+    Write-Host "Downloading Firefox installer..."
+    $webClient = New-Object System.Net.WebClient
+    $webClient.DownloadFile("https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US", $firefoxInstallerPath)
 
+    Write-Host "Installing Firefox..."
+    Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
+}
 
-# CLAM AV
+# ClamAV
+$installClamAV = Read-Host "Do you want to install ClamAV? (yes/no)"
+if ($installClamAV -eq "yes") {
+    $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
+    Write-Host "Downloading ClamAV installer..."
+    $webClient.DownloadFile("https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi", $clamavInstallerPath)
 
-# Download and install ClamAV
-$clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
-Write-Host "Downloading ClamAV installer..."
-Start-BitsTransfer -Source "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -Destination $clamavInstallerPath
+    Write-Host "Installing ClamAV..."
+    Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
 
-Write-Host "Installing ClamAV..."
-Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
+    # Configure ClamAV for regular scans
+    Write-Host "Scheduling ClamAV scans..."
+    $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
+    Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
+    schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
+}
 
-# Configure ClamAV for regular scans
-Write-Host "Scheduling ClamAV scans..."
-$clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
-Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
-schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
+# Wireshark
+$installWireshark = Read-Host "Do you want to install Wireshark? (yes/no)"
+if ($installWireshark -eq "yes") {
+    $wiresharkIntallerPath = "$env:TEMP\Wireshark-4.4.1-x64.exe"
+    Write-Host "Downloading Wireshark..."
+    $webClient.DownloadFile("https://2.na.dl.wireshark.org/win64/Wireshark-4.4.1-x64.exe", $wiresharkIntallerPath)
 
-# # WIRESHARK
+    Write-Host "Installing Wireshark..."
+    Start-Process -FilePath $wiresharkIntallerPath -ArgumentList "/S" -Wait
+}
 
-# # Download and install Wireshark
-$wiresharkIntallerPath = "$env:TEMP\Wireshark-4.4.1-x64.exe"
-Write-Host "Downloading Wireshark..."
-Start-BitsTransfer -Source "https://2.na.dl.wireshark.org/win64/Wireshark-4.4.1-x64.exe" -Destination $wiresharkIntallerPath
+# Sysinternals
+$installSysinternals = Read-Host "Do you want to install Sysinternals tools? (yes/no)"
+if ($installSysinternals -eq "yes") {
+    Write-Host "Downloading Sysinternals..."
+    $webClient.DownloadFile("https://download.sysinternals.com/files/Autoruns.zip", "$env:TEMP\Autoruns.zip")
+    $webClient.DownloadFile("https://download.sysinternals.com/files/ProcessExplorer.zip", "$env:TEMP\ProcessExplorer.zip")
+    $webClient.DownloadFile("https://download.sysinternals.com/files/ProcessMonitor.zip", "$env:TEMP\ProcessMonitor.zip")
+    $webClient.DownloadFile("https://download.sysinternals.com/files/TCPView.zip", "$env:TEMP\TCPView.zip")
 
-Write-Host "Installing Wireshark..."
-Start-Process -FilePath $wiresharkIntallerPath -ArgumentList "/S" -Wait
-
-# # SYSINTERNALS
-Write-Host "Downloading Sysinternals..."
-Start-BitsTransfer -Source "https://download.sysinternals.com/files/Autoruns.zip" -Destination "$env:TEMP\Autoruns.zip"
-Start-BitsTransfer -Source "https://download.sysinternals.com/files/ProcessExplorer.zip" -Destination "$env:TEMP\ProcessExplorer.zip"
-Start-BitsTransfer -Source "https://download.sysinternals.com/files/ProcessMonitor.zip" -Destination "$env:TEMP\ProcessMonitor.zip"
-Start-BitsTransfer -Source "https://download.sysinternals.com/files/TCPView.zip" -Destination "$env:TEMP\TCPView.zip"
-
-Write-Host "Installing  Sysinternals..."
-New-Item -Path "C:\Sysinternals" -ItemType Directory
-Expand-Archive -Path "$env:TEMP\Autoruns.zip" -DestinationPath "C:\Sysinternals"
-Expand-Archive -Path "$env:TEMP\ProcessExplorer.zip" -DestinationPath "C:\ProcessExplorer"
-Expand-Archive -Path "$env:TEMP\ProcessMonitor.zip" -DestinationPath "C:\ProcessMonitor"
-Expand-Archive -Path "$env:TEMP\TCPView.zip" -DestinationPath "C:\TCPView"
-Write-Host "Sysinternals installed to C:\Sysinternals"
-
-# # Wazuh (OSSEC)
-
-# # Download and install Wazuh Agent (includes OSSEC functionality)
-# $wazuhInstallerPath = "$env:TEMP\wazuh-agent-4.3.10.msi"
-# Write-Host "Downloading Wazuh Agent installer..."
-# Start-BitsTransfer -Source "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi" -Destination $wazuhInstallerPath
-
-# Write-Host "Installing Wazuh Agent..."
-# Start-Process -FilePath $wazuhInstallerPath -ArgumentList "/quiet /norestart" -Wait
-
-# # Set Wazuh Agent to run in local mode
-# Write-Host "Configuring Wazuh Agent for local mode..."
-# $wazuhConfigPath = "C:\Program Files (x86)\ossec-agent\ossec.conf"
-# $wazuhConfig = Get-Content $wazuhConfigPath
-# $wazuhConfig = $wazuhConfig -replace '<server>.*</server>', '' # Ensure no server is specified
-# Set-Content -Path $wazuhConfigPath -Value $wazuhConfig
-
-# # Start Wazuh Agent Service
-# Write-Host "Starting Wazuh Agent service in local mode..."
-# Start-Service -Name WazuhSvc
-
+    Write-Host "Installing Sysinternals..."
+    New-Item -Path "C:\Sysinternals" -ItemType Directory
+    Expand-Archive -Path "$env:TEMP\Autoruns.zip" -DestinationPath "C:\Sysinternals"
+    Expand-Archive -Path "$env:TEMP\ProcessExplorer.zip" -DestinationPath "C:\Sysinternals"
+    Expand-Archive -Path "$env:TEMP\ProcessMonitor.zip" -DestinationPath "C:\Sysinternals"
+    Expand-Archive -Path "$env:TEMP\TCPView.zip" -DestinationPath "C:\Sysinternals"
+    Write-Host "Sysinternals installed to C:\Sysinternals"
+}
 
 Write-Host "Performing a quick scan with Windows Defender..."
 Start-MpScan -ScanType QuickScan
 
 Write-Host "Basic security checks and configurations are complete."
-Write-Host "Please review if there are Windows updates available, install them, and restart the system."
+Write-Host "Please review if there are Windows updates available and install them and Restart the system."
