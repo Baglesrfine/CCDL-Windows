@@ -2,6 +2,13 @@
 Import-Module -Name Microsoft.PowerShell.LocalAccounts
 Import-Module -Name NetSecurity
 Import-Module -Name BitsTransfer
+
+# Check if PSWindowsUpdate is installed, if not, install it
+if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
+    Write-Host "PSWindowsUpdate module not found. Installing..."
+    Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser
+}
+
 Import-Module -Name PSWindowsUpdate
 
 # Ask the user if they want to run the setup
