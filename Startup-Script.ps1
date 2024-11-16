@@ -26,9 +26,9 @@ $adminAccount = Get-LocalUser -Name "Administrator"
 Set-LocalUser -Name "Administrator" -Password $newAdminPassword
 
 # Rename administrator account for security
-$newAdminName = Read-Host "Enter a new name for the administrator account"
-Rename-LocalUser -Name "Administrator" -NewName $newAdminName
-Write-Host "Administrator account renamed to $newAdminName."
+# $newAdminName = Read-Host "Enter a new name for the administrator account"
+# Rename-LocalUser -Name "Administrator" -NewName $newAdminName
+# Write-Host "Administrator account renamed to $newAdminName."
 
 # List all user accounts
 Write-Host "Listing all user accounts:"
