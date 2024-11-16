@@ -1,3 +1,9 @@
+# Import necessary modules
+Import-Module -Name Microsoft.PowerShell.LocalAccounts
+Import-Module -Name NetSecurity
+Import-Module -Name BitsTransfer
+Import-Module -Name PSWindowsUpdate
+
 # Ask the user if they want to run the setup
 $runSetup = Read-Host "Do you want to run the setup? (yes/no)"
 if ($runSetup -ne "yes") {
@@ -6,7 +12,7 @@ if ($runSetup -ne "yes") {
 }
 
 Write-Host "Synchronizing system time..."
-w32tm /resync
+Start-Job -ScriptBlock { w32tm /resync }
 
 # Prompt for new administrator password and confirmation
 do {
@@ -23,7 +29,7 @@ do {
 
 # Change local administrator password
 $adminAccount = Get-LocalUser -Name "Administrator"
-Set-LocalUser -Name "Administrator" -Password $newAdminPassword
+Set-LocalUser -Name $adminAccount -Password $newAdminPassword
 
 # Rename administrator account for security
 $newAdminName = Read-Host "Enter a new name for the administrator account"
@@ -45,65 +51,117 @@ if ($guestAccount.Enabled) {
 
 # Set strong password policies
 Write-Host "Setting strong password policies..."
-net accounts /minpwlen:12 /maxpwage:30 /minpwage:1 /uniquepw:5 /lockoutthreshold:5
+Start-Job -ScriptBlock { net accounts /minpwlen:12 /maxpwage:30 /minpwage:1 /uniquepw:5 /lockoutthreshold:5 }
 
 # Disable unnecessary services
 $servicesToDisable = @("Spooler", "RemoteRegistry", "Fax")
 foreach ($service in $servicesToDisable) {
-    Write-Host "Disabling service: $service"
-    Stop-Service -Name $service -Force
-    Set-Service -Name $service -StartupType Disabled
+    Start-Job -ScriptBlock {
+        param ($service)
+        Write-Host "Disabling service: $service"
+        Stop-Service -Name $service -Force
+        Set-Service -Name $service -StartupType Disabled
+    } -ArgumentList $service
 }
 
 # Enable Windows Defender with real-time protection and PUA protection
 Write-Host "Enabling Windows Defender and configuring protection settings..."
-Set-MpPreference -DisableRealtimeMonitoring $false
-Set-MpPreference -PUAProtection Enabled
+Start-Job -ScriptBlock {
+    Set-MpPreference -DisableRealtimeMonitoring $false
+    Set-MpPreference -PUAProtection Enabled
+}
 
 # Enable Windows Firewall with basic rules
 Write-Host "Configuring Windows Firewall..."
-Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
-Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow
+Start-Job -ScriptBlock {
+    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+    Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow
+}
 
 # Disable SMBv1 to mitigate vulnerabilities
 Write-Host "Disabling SMBv1 protocol..."
-Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
-Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+Start-Job -ScriptBlock {
+    Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+    Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+}
 
 # Configure Remote Desktop settings (disable if not needed)
 Write-Host "Disabling Remote Desktop Protocol..."
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1
+Start-Job -ScriptBlock {
+    Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1
+}
 
 # Set account lockout policies
 Write-Host "Configuring account lockout policies..."
-net accounts /lockoutthreshold:5 /lockoutduration:30 /lockoutwindow:30
+Start-Job -ScriptBlock { net accounts /lockoutthreshold:5 /lockoutduration:30 /lockoutwindow:30 }
 
 # Enable audit policies for key events
 Write-Host "Enabling audit policies for login and account management..."
-AuditPol.exe /set /subcategory:"Logon" /success:enable /failure:enable
-AuditPol.exe /set /subcategory:"Account Management" /success:enable /failure:enable
+Start-Job -ScriptBlock {
+    AuditPol.exe /set /subcategory:"Logon" /success:enable /failure:enable
+    AuditPol.exe /set /subcategory:"Account Management" /success:enable /failure:enable
+}
 
 # Remove unnecessary network shares
 Write-Host "Removing unnecessary network shares..."
-Get-SmbShare | Where-Object { $_.Name -ne "ADMIN$" -and $_.Name -ne "C$" } | ForEach-Object {
-    Write-Host "Removing share: $($_.Name)"
-    Remove-SmbShare -Name $_.Name -Force
+Start-Job -ScriptBlock {
+    Get-SmbShare | Where-Object { $_.Name -ne "ADMIN$" -and $_.Name -ne "C$" } | ForEach-Object {
+        Write-Host "Removing share: $($_.Name)"
+        Remove-SmbShare -Name $_.Name -Force
+    }
 }
 
 # Enable Windows Firewall (reaffirm if previously configured)
 Write-Host "Reaffirming Windows Firewall enabled..."
-Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+Start-Job -ScriptBlock {
+    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+}
 
 # Disable IPv6 if not needed
 Write-Host "Disabling IPv6..."
-Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6
-Set-NetIPv6Protocol -State Disabled
+Start-Job -ScriptBlock {
+    Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6
+    Set-NetIPv6Protocol -State Disabled
+}
 
 # Ensure Windows Update is set to automatic
 Write-Host "Setting Windows Update to automatic..."
-Set-Service -Name wuauserv -StartupType Automatic
-Write-Host "Checking for Windows updates..."
-Install-WindowsUpdate -AcceptAll
+Start-Job -ScriptBlock {
+    Set-Service -Name wuauserv -StartupType Automatic
+    Write-Host "Checking for Windows updates..."
+    Install-WindowsUpdate -AcceptAll
+}
+
+# Additional security measures
+# Write-Host "Enabling Secure Boot..."
+# Start-Job -ScriptBlock { Confirm-SecureBootUEFI }
+
+Write-Host "Configuring Windows Defender Exploit Guard..."
+Start-Job -ScriptBlock { Set-MpPreference -EnableControlledFolderAccess Enabled }
+
+# Write-Host "Enabling BitLocker for drive encryption..."
+# Start-Job -ScriptBlock { Enable-BitLocker -MountPoint "C:" -EncryptionMethod XtsAes256 -UsedSpaceOnly -TpmProtector }
+
+Write-Host "Configuring Network Level Authentication for Remote Desktop..."
+Start-Job -ScriptBlock { Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 }
+
+Write-Host "Disabling LM and NTLMv1 protocols..."
+Start-Job -ScriptBlock { Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name "LmCompatibilityLevel" -Value 5 }
+
+Write-Host "Enabling Windows Defender Credential Guard..."
+Start-Job -ScriptBlock {
+    Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard' -Name "EnableVirtualizationBasedSecurity" -Value 1
+    Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name "LsaCfgFlags" -Value 1
+}
+
+Write-Host "Configuring Windows Update to install updates automatically..."
+Start-Job -ScriptBlock { Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name "AUOptions" -Value 4 }
+
+Write-Host "Enabling logging for PowerShell..."
+Start-Job -ScriptBlock {
+    Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging' -Name "EnableScriptBlockLogging" -Value 1
+    Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription' -Name "EnableTranscripting" -Value 1
+}
 
 installs:
 
@@ -117,63 +175,77 @@ if ($runInstalls -ne "yes") {
 # Firefox
 $installFirefox = Read-Host "Do you want to install Firefox? (yes/no)"
 if ($installFirefox -eq "yes") {
-    $firefoxInstallerPath = "$env:TEMP\FirefoxInstaller.exe"
-    Write-Host "Downloading Firefox installer..."
-    $webClient = New-Object System.Net.WebClient
-    $webClient.DownloadFile("https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US", $firefoxInstallerPath)
+    Start-Job -ScriptBlock {
+        $firefoxInstallerPath = "$env:TEMP\FirefoxInstaller.exe"
+        Write-Host "Downloading Firefox installer..."
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile("https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US", $firefoxInstallerPath)
 
-    Write-Host "Installing Firefox..."
-    Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
+        Write-Host "Installing Firefox..."
+        Start-Process -FilePath $firefoxInstallerPath -ArgumentList "/S" -Wait
+    }
 }
 
 # ClamAV
 $installClamAV = Read-Host "Do you want to install ClamAV? (yes/no)"
 if ($installClamAV -eq "yes") {
-    $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
-    Write-Host "Downloading ClamAV installer..."
-    $webClient.DownloadFile("https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi", $clamavInstallerPath)
+    Start-Job -ScriptBlock {
+        $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
+        Write-Host "Downloading ClamAV installer..."
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile("https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi", $clamavInstallerPath)
 
-    Write-Host "Installing ClamAV..."
-    Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
+        Write-Host "Installing ClamAV..."
+        Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
 
-    # Configure ClamAV for regular scans
-    Write-Host "Scheduling ClamAV scans..."
-    $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
-    Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
-    schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
+        # Configure ClamAV for regular scans
+        Write-Host "Scheduling ClamAV scans..."
+        $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
+        Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
+        schtasks /create /sc minute /mo 15 /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 00:00
+    }
 }
 
 # Wireshark
 $installWireshark = Read-Host "Do you want to install Wireshark? (yes/no)"
 if ($installWireshark -eq "yes") {
-    $wiresharkIntallerPath = "$env:TEMP\Wireshark-4.4.1-x64.exe"
-    Write-Host "Downloading Wireshark..."
-    $webClient.DownloadFile("https://2.na.dl.wireshark.org/win64/Wireshark-4.4.1-x64.exe", $wiresharkIntallerPath)
+    Start-Job -ScriptBlock {
+        $wiresharkIntallerPath = "$env:TEMP\Wireshark-4.4.1-x64.exe"
+        Write-Host "Downloading Wireshark..."
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile("https://2.na.dl.wireshark.org/win64/Wireshark-4.4.1-x64.exe", $wiresharkIntallerPath)
 
-    Write-Host "Installing Wireshark..."
-    Start-Process -FilePath $wiresharkIntallerPath -ArgumentList "/S" -Wait
+        Write-Host "Installing Wireshark..."
+        Start-Process -FilePath $wiresharkIntallerPath -ArgumentList "/S" -Wait
+    }
 }
 
 # Sysinternals
 $installSysinternals = Read-Host "Do you want to install Sysinternals tools? (yes/no)"
 if ($installSysinternals -eq "yes") {
-    Write-Host "Downloading Sysinternals..."
-    $webClient.DownloadFile("https://download.sysinternals.com/files/Autoruns.zip", "$env:TEMP\Autoruns.zip")
-    $webClient.DownloadFile("https://download.sysinternals.com/files/ProcessExplorer.zip", "$env:TEMP\ProcessExplorer.zip")
-    $webClient.DownloadFile("https://download.sysinternals.com/files/ProcessMonitor.zip", "$env:TEMP\ProcessMonitor.zip")
-    $webClient.DownloadFile("https://download.sysinternals.com/files/TCPView.zip", "$env:TEMP\TCPView.zip")
+    Start-Job -ScriptBlock {
+        Write-Host "Downloading Sysinternals..."
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile("https://download.sysinternals.com/files/Autoruns.zip", "$env:TEMP\Autoruns.zip")
+        $webClient.DownloadFile("https://download.sysinternals.com/files/ProcessExplorer.zip", "$env:TEMP\ProcessExplorer.zip")
+        $webClient.DownloadFile("https://download.sysinternals.com/files/ProcessMonitor.zip", "$env:TEMP\ProcessMonitor.zip")
+        $webClient.DownloadFile("https://download.sysinternals.com/files/TCPView.zip", "$env:TEMP\TCPView.zip")
 
-    Write-Host "Installing Sysinternals..."
-    New-Item -Path "C:\Sysinternals" -ItemType Directory
-    Expand-Archive -Path "$env:TEMP\Autoruns.zip" -DestinationPath "C:\Sysinternals"
-    Expand-Archive -Path "$env:TEMP\ProcessExplorer.zip" -DestinationPath "C:\Sysinternals"
-    Expand-Archive -Path "$env:TEMP\ProcessMonitor.zip" -DestinationPath "C:\Sysinternals"
-    Expand-Archive -Path "$env:TEMP\TCPView.zip" -DestinationPath "C:\Sysinternals"
-    Write-Host "Sysinternals installed to C:\Sysinternals"
+        Write-Host "Installing Sysinternals..."
+        New-Item -Path "C:\Sysinternals" -ItemType Directory
+        Expand-Archive -Path "$env:TEMP\Autoruns.zip" -DestinationPath "C:\Sysinternals"
+        Expand-Archive -Path "$env:TEMP\ProcessExplorer.zip" -DestinationPath "C:\Sysinternals"
+        Expand-Archive -Path "$env:TEMP\ProcessMonitor.zip" -DestinationPath "C:\Sysinternals"
+        Expand-Archive -Path "$env:TEMP\TCPView.zip" -DestinationPath "C:\Sysinternals"
+        Write-Host "Sysinternals installed to C:\Sysinternals"
+    }
 }
 
 Write-Host "Performing a quick scan with Windows Defender..."
-Start-MpScan -ScanType QuickScan
+Start-Job -ScriptBlock { Start-MpScan -ScanType QuickScan }
 
 Write-Host "Basic security checks and configurations are complete."
 Write-Host "Please review if there are Windows updates available and install them and Restart the system."
+
+# Wait for all jobs to complete
+Get-Job | Wait-Job
