@@ -17,7 +17,7 @@ Write-Host "Administrator account renamed to $newAdminName."
 Write-Host "Listing all user accounts:"
 Get-LocalUser | Format-Table -Property Name, Enabled, LastLogon
 $username = Read-Host -Prompt "Enter a username to disable or C to continue."
-WHILE (!($username) -eq "C"){
+WHILE (($username) -ne "C"){
     Disable-LocalUser -Name $username
 }
 
