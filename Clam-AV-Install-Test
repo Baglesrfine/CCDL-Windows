@@ -1,7 +1,7 @@
 # Download and install ClamAV
 $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
 Write-Host "Downloading ClamAV installer..."
-Start-BitsTransfer -Source "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -Destination $clamavInstallerPath
+Invoke-WebRequest -Uri "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -OutFile $clamavInstallerPath
 
 Write-Host "Installing ClamAV..."
 Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
@@ -12,32 +12,13 @@ $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
 Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
 schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
 
-# # Ensure BITS service is running
-# Start-Service -Name BITS
+# Verify installation
+if (-Not (Test-Path "C:\Program Files\ClamAV\clamscan.exe")) {
+    Write-Host "ClamAV installation failed."
+    exit 1
+}
 
-# # Download and install ClamAV
-# $clamavInstallerPath = "$env:TEMP\clamav-win-x64.msi"
-# Write-Host "Downloading ClamAV installer..."
-# Start-BitsTransfer -Source "https://www.clamav.net/downloads/production/clamav-1.4.1.win.x64.msi" -Destination $clamavInstallerPath
-
-# Write-Host "Installing ClamAV..."
-# Start-Process -FilePath $clamavInstallerPath -ArgumentList "/quiet /norestart" -Wait
-
-# # Verify installation
-# if (-Not (Test-Path "C:\Program Files\ClamAV\clamscan.exe")) {
-#     Write-Host "ClamAV installation failed."
-#     exit 1
-# }
-
-# # Configure ClamAV for regular scans
-# Write-Host "Scheduling ClamAV scans..."
-# $clamAVConfigPath = "C:\Program Files\ClamAV\clamd.conf"
-# Set-Content -Path $clamAVConfigPath -Value 'LogFile "C:\Program Files\ClamAV\clamd.log"'
-
-# # Ensure the log file path is valid
-# if (-Not (Test-Path "C:\Program Files\ClamAV\clamd.log")) {
-#     New-Item -ItemType File -Path "C:\Program Files\ClamAV\clamd.log"
-# }
-
-# # Schedule the scan task
-# schtasks /create /sc daily /tn "ClamAV Scan" /tr "C:\Program Files\ClamAV\clamscan.exe -r C:\" /st 02:00
+# Ensure the log file path is valid
+if (-Not (Test-Path "C:\Program Files\ClamAV\clamd.log")) {
+    New-Item -ItemType File -Path "C:\Program Files\ClamAV\clamd.log"
+}
