@@ -3,6 +3,10 @@ Import-Module -Name Microsoft.PowerShell.LocalAccounts
 Import-Module -Name NetSecurity
 Import-Module -Name BitsTransfer
 
+# Create directories
+mkdir C:\CCDC
+mkdir C:\CCDC\DNS
+
 # Check if PSWindowsUpdate is installed, if not, install it
 if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
     Write-Host "PSWindowsUpdate module not found. Installing..."
@@ -10,6 +14,9 @@ if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
 }
 
 Import-Module -Name PSWindowsUpdate
+
+# Ask the user if it is the scored 2019 box
+$server = Read-Host "Does this server have AD/DNS? (yes/no)"
 
 # Ask the user if they want to run the setup
 $runSetup = Read-Host "Do you want to run the setup? (yes/no)"
@@ -139,10 +146,19 @@ Start-Job -ScriptBlock {
     Install-WindowsUpdate -AcceptAll
 }
 
+# Secure and backup DNS
+Write-Host "Securing DNS..."
+Get-DNSServerZone
+$zone = Read-Host "Enter the DNS zone used by the scoring engine"
+Start-Job -ScriptBlock {
+    dnscmd.exe /Config /SocketPoolSize 10000
+    dnscmd.exe /Config /CacheLockingPercent 100
+    dnscmd.exe /ZoneExport $zone C:\CCDC\DNS\
+}
+
 # Additional security measures
 # Write-Host "Enabling Secure Boot..."
 # Start-Job -ScriptBlock { Confirm-SecureBootUEFI }
-
 Write-Host "Configuring Windows Defender Exploit Guard..."
 Start-Job -ScriptBlock { Set-MpPreference -EnableControlledFolderAccess Enabled }
 
