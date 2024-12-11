@@ -7,7 +7,8 @@ This repository contains a collection of PowerShell scripts designed by the UW-S
 To run these scripts, simply download the repository or individual scripts using `wget`:
 
 ```bash
-wget "https://raw.githubusercontent.com/Baglesrfine/CCDL-Windows/refs/heads/main/Startup-Script.ps1" -OutFile "Startup-Script.ps1"
+wget "https://tinyurl.com/4duuewes" -OutFile "Startup-Script.ps1"
+wget "https://tinyurl.com/msc9cyd8" -Outfile "Installs.ps1"
 ```
 ```bash
 Invoke-WebRequest "https://raw.githubusercontent.com/Baglesrfine/CCDL-Windows/refs/heads/main/Startup-Script.ps1" -OutFile "Startup-Script.ps1"
