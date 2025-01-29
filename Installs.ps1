@@ -66,3 +66,6 @@ if ($installSysinternals -eq "yes") {
         Write-Host "Sysinternals installed to C:\Sysinternals"
     }
 }
+
+# Remove startup script from startup
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "MyStartupScript"
