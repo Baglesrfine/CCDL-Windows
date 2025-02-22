@@ -1,3 +1,711 @@
+# # Import necessary modules
+# Import-Module -Name Microsoft.PowerShell.LocalAccounts
+# Import-Module -Name NetSecurity
+# Import-Module -Name BitsTransfer
+
+# # Create directories
+# $ccdcPath = "C:\CCDC"
+# $toolsPath = "$ccdcPath\tools-Windows"
+# mkdir $ccdcPath -Force
+# mkdir "$ccdcPath\DNS" -Force
+# mkdir $toolsPath -Force
+
+# # Ask if tools should be downloaded
+# $downloadTools = Read-Host "Do you want to download the necessary tools? (yes/no)"
+# if ($downloadTools -eq "yes") {
+#     # Download necessary tools
+#     $tools = @(
+#         @{ Name = "Npcap Installer"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/npcap-1.80.exe"; Path = "$toolsPath\npcap-1.80.exe" },
+#         @{ Name = "Firefox Installer"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/Firefox%20Installer.exe"; Path = "$toolsPath\FirefoxInstaller.exe" }
+#     )
+
+#     foreach ($tool in $tools) {
+#         Write-Host "Downloading $($tool.Name)..."
+#         Start-BitsTransfer -Source $tool.Url -Destination $tool.Path
+#     }
+# } else {
+#     Write-Host "Skipping download of tools."
+# }
+
+# # Initialize the global jobs array
+# $global:jobs = @()
+
+# function Start-LoggedJob {
+#     param (
+#         [string]$JobName,
+#         [scriptblock]$ScriptBlock
+#     )
+    
+#     $job = Start-Job -Name $JobName -ScriptBlock $ScriptBlock
+#     $global:jobs += @($job)  # Ensure the job is added as an array element
+#     Write-Host "Started job: $JobName"
+# }
+
+# # # Sync system time
+# # Start-LoggedJob -JobName "Synchronize System Time" -ScriptBlock {
+# #     try {
+# #         tzutil /s "Central Standard Time"
+# #         w32tm /resync
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #         Write-Host "System time synchronized to Central Standard Time."
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #     } catch {
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #         Write-Host "An error occurred while synchronizing system time: $_"
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #     }
+# # }
+
+# # # Set strong password policies
+# # Start-LoggedJob -JobName "Set Password Policies" -ScriptBlock {
+# #     try {
+# #         net accounts /minpwlen:12 /maxpwage:30 /minpwage:1 /uniquepw:5 /lockoutthreshold:5
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #         Write-Host "Password policies set successfully."
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #     } catch {
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #         Write-Host "An error occurred while setting password policies: $_"
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #     }
+# # }
+
+# # # Disable unnecessary services
+# # $servicesToDisable = @("Spooler", "RemoteRegistry", "Fax")
+# # foreach ($service in $servicesToDisable) {
+# #     Start-LoggedJob -JobName "Disable Service: $service" -ScriptBlock {
+# #         param ($service)
+# #         Write-Host "Disabling service: $service"
+# #         Stop-Service -Name $service -Force
+# #         Set-Service -Name $service -StartupType Disabled
+# #     } -ArgumentList $service
+# # }
+
+# # # Additional test jobs
+# # Start-LoggedJob -JobName "Enable Windows Defender" -ScriptBlock {
+# #     try {
+# #         Set-MpPreference -DisableRealtimeMonitoring $false
+# #         Set-MpPreference -PUAProtection Enabled
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #         Write-Host "Windows Defender enabled and PUA protection configured."
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #     } catch {
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #         Write-Host "An error occurred while enabling Windows Defender: $_"
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #     }
+# # }
+
+# # Start-LoggedJob -JobName "Configure Windows Firewall" -ScriptBlock {
+# #     try {
+# #         Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+# #         Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #         Write-Host "Windows Firewall configured."
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #     } catch {
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #         Write-Host "An error occurred while configuring Windows Firewall: $_"
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #     }
+# # }
+
+# # Start-LoggedJob -JobName "Disable SMBv1" -ScriptBlock {
+# #     try {
+# #         Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+# #         Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #         Write-Host "SMBv1 disabled."
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #     } catch {
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #         Write-Host "An error occurred while disabling SMBv1: $_"
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #     }
+# # }
+# # Perform a quick scan with Windows Defender
+# Start-LoggedJob -JobName "Quick Scan with Windows Defender" -ScriptBlock { 
+#     try {
+#         Start-MpScan -ScanType QuickScan
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "Quick scan with Windows Defender completed."
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" 
+#         Write-Host "An error occurred while performing a quick scan with Windows Defender: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" 
+#     }
+# }
+
+# Start-LoggedJob -JobName "Secure and Backup DNS" -ScriptBlock {
+#     param ($zone, $ccdcPath)
+#     try {
+#         # Configure DNS settings
+#         #Set-DnsServerSetting -SocketPoolSize 10000 -CacheLockingPercent 100 -Confirm:$false
+
+#         # Export DNS zone file
+#         $backupPath = "$ccdcPath\DNS\$zone.dns"
+#         Export-DnsServerZone -Name $zone -FileName $backupPath -ComputerName localhost
+
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "DNS secured and backed up successfully to $backupPath"
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred while securing and backing up DNS: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# } -ArgumentList $zone, $ccdcPath
+
+# # Enable Windows Firewall with basic rules
+# Start-LoggedJob -JobName "Configure Windows Firewall" -ScriptBlock {
+#     try {
+#         # Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+#         # Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow
+        
+#         # Export existing Firewall
+#         Export-WindowsFirewallRules -FilePath "$ccdcPath\firewall.old"
+#         Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+#         # Block by default
+#         Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Block
+#         Set-NetFirewallProfile -Profile Domain,Public,Private -NotifyOnListen True
+#         # Enable Logging
+#         Set-NetFirewallProfile -Profile Domain,Public,Private -LogFileName "$ccdcPath\pfirewall.log" -LogMaxSizeKilobytes 8192 -LogAllowed True -LogBlocked True
+#         Set-NetFirewallSetting -StatefulFtp Disable
+#         Set-NetFirewallSetting -StatefulPptp Disable
+        
+#         # Disable existing rules
+#         Get-NetFirewallRule | Set-NetFirewallRule -Enabled False
+        
+#         # Firewall inbound rules
+#         New-NetFirewallRule -DisplayName "NTP in" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 123 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "Allow Pings in" -Direction Inbound -Action Allow -Enabled True -Protocol ICMPv4 -IcmpType 8
+#         New-NetFirewallRule -DisplayName "DNS IN (UDP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "DNS IN (TCP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "LDAP TCP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "LDAP UDP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "LDAP Global Catalog IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 3268 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "NETBIOS Resolution IN" -Direction Inbound -Action Allow -Program "System" -Enabled True -Profile Any -LocalPort 138 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "Secure LDAP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 636 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "Secure LDAP Global Catalog IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 3269 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "RPC IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort RPC -Protocol TCP
+#         New-NetFirewallRule -DisplayName "RPC-EPMAP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort RPC-EPMap -Protocol TCP
+#         New-NetFirewallRule -DisplayName "DHCP UDP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort 67,68 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "RPC for DNS IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -LocalPort RPC -Protocol TCP
+
+#         # Outbound rules
+#         New-NetFirewallRule -DisplayName "Allow Pings out" -Direction Outbound -Action Allow -Enabled True -Protocol ICMPv4 -IcmpType 8
+#         New-NetFirewallRule -DisplayName "Splunk OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 8000,8089,9997 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "Web OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 80,443 -Protocol TCP
+#         New-NetFirewallRule -DisplayName "NTP OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 123 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "Active Directory TCP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -Protocol TCP
+#         New-NetFirewallRule -DisplayName "Active Directory UDP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -Protocol UDP
+#         New-NetFirewallRule -DisplayName "DNS TCP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -Protocol TCP
+#         New-NetFirewallRule -DisplayName "DNS UDP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -Protocol UDP
+#         New-NetFirewallRule -DisplayName "DNS OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 53 -Protocol UDP
+#         New-NetFirewallRule -DisplayName "DHCP" -Direction Outbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort 68 -RemotePort 67 -Protocol UDP
+        
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "Windows Firewall configured with basic rules."
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred while configuring Windows Firewall: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# }
+
+# # Enable audit policies for key events like login, account management, file system changes, and registry changes
+# Start-LoggedJob -JobName "Enable Audit Policies" -ScriptBlock {
+#     try {
+#         AuditPol.exe /set /subcategory:"Logon" /success:enable /failure:enable
+#         AuditPol.exe /set /subcategory:"Account Management" /success:enable /failure:enable
+#         AuditPol.exe /set /subcategory:"File System" /success:enable /failure:enable
+#         AuditPol.exe /set /subcategory:"Registry" /success:enable /failure:enable
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "Audit policies for login, account management, file system changes, and registry changes enabled."
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred while enabling audit policies: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# }
+
+# # # Disable IPv6 if not needed
+# # Start-LoggedJob -JobName "Disable IPv6" -ScriptBlock {
+# #     try {
+# #         Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6
+# #         Set-NetIPv6Protocol -State Disabled
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #         Write-Host "IPv6 disabled."
+# #         Write-Host "--------------------------------------------------------------------------------"
+# #     } catch {
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #         Write-Host "An error occurred while disabling IPv6: $_"
+# #         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+# #     }
+# # }
+
+# # Create alert for Audit WMI subscriptions
+# Start-LoggedJob -JobName "Create Alert for Audit WMI Subscriptions" -ScriptBlock {
+#     try {
+#         $scriptPath = "$toolsPath\WmiAlert.ps1"
+#         $taskName = "WmiAlert"
+        
+#         # Create the script
+#         @"
+#         $wmiSubscriptions = Get-WmiObject -Namespace root\subscription -Class __FilterToConsumerBinding
+#         $previousSubscriptions = $wmiSubscriptions.PSObject.Properties.Name
+        
+#         while ($true) {
+#             Start-Sleep -Seconds 5
+#             $currentSubscriptions = Get-WmiObject -Namespace root\subscription -Class __FilterToConsumerBinding
+#             $newSubscriptions = Compare-Object -ReferenceObject $previousSubscriptions -DifferenceObject $currentSubscriptions.PSObject.Properties.Name | Where-Object { $_.SideIndicator -eq '=>' }
+            
+#             if ($newSubscriptions) {
+#                 [System.Windows.MessageBox]::Show("New WMI subscription detected: $($newSubscriptions.InputObject)")
+#                 $previousSubscriptions += $newSubscriptions.InputObject
+#             }
+#         }
+# "@ | Set-Content -Path $scriptPath
+#         # Create the scheduled task
+#         $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File `"$scriptPath`""
+#         $trigger = New-ScheduledTaskTrigger -AtStartup
+#         Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskName -User "SYSTEM" -RunLevel Highest
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "Alert for Audit WMI subscriptions created."
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred while creating alert for Audit WMI subscriptions: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# }
+
+# # Stop non admin users from installing software or running commands
+# Start-LoggedJob -JobName "Restrict Non-Admin Users from Installing Software" -ScriptBlock {
+#     try {
+#         $acl = Get-Acl "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+#         $acl.SetAccessRuleProtection($true, $false)
+        
+#         # Remove existing access rules
+#         $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) }
+        
+#         # Add full control for necessary system accounts
+#         $adminUser = [System.Security.Principal.NTAccount]"Administrator"
+#         $systemUser = [System.Security.Principal.NTAccount]"SYSTEM"
+#         $trustedInstaller = [System.Security.Principal.NTAccount]"NT SERVICE\TrustedInstaller"
+#         $adminRule = New-Object System.Security.AccessControl.RegistryAccessRule($adminUser, "FullControl", "Allow")
+#         $systemRule = New-Object System.Security.AccessControl.RegistryAccessRule($systemUser, "FullControl", "Allow")
+#         $trustedInstallerRule = New-Object System.Security.AccessControl.RegistryAccessRule($trustedInstaller, "FullControl", "Allow")
+#         $acl.AddAccessRule($adminRule)
+#         $acl.AddAccessRule($systemRule)
+#         $acl.AddAccessRule($trustedInstallerRule)
+        
+#         # Apply the modified ACL to the registry key
+#         Set-Acl -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -AclObject $acl
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "Non-admin users restricted from installing software."
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred while restricting non-admin users from installing software: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# }
+
+# # Additional security measures
+# Start-LoggedJob -JobName "Configure Windows Defender Exploit Guard" -ScriptBlock {
+#     try {
+#         Set-MpPreference -EnableControlledFolderAccess Enabled
+#         Set-MpPreference -EnableExploitProtection Enabled
+#         Set-MpPreference -AttackSurfaceReductionRules_Ids @(
+#             "D4F940AB-401B-4EFC-AADC-AD5F3C50688A",  # Block executable content from email and webmail clients
+#             "3B576869-A4EC-4529-8536-B80A7769E899",  # Block executable content from Office files
+#             "75668C1F-73B5-4CF0-BB93-3ECF5CB7CC84",  # Block credential stealing from LSASS
+#             "D1E49AAC-8F56-4280-B9BA-993A6D77406C"   # Block executable content from Office files that contain macros
+#         )
+#         Set-MpPreference -AttackSurfaceReductionRules_Actions @("Enable", "Enable", "Enable", "Enable")
+#         Write-Host "--------------------------------------------------------------------------------"
+#         Write-Host "Windows Defender Exploit Guard configured."
+#         Write-Host "--------------------------------------------------------------------------------"
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred while configuring Windows Defender Exploit Guard: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# }
+
+# # Disable Sign-in for users not Administrator
+# Start-LoggedJob -JobName "Disable Sign-in for Non-Admin Users" -ScriptBlock {
+#     try {
+#         $users = Get-LocalUser | Where-Object { $_.Name -ne "Administrator" }
+#         foreach ($user in $users) {
+#             Set-LocalUser -Name $user.Name -PasswordNeverExpires $true
+#             Set-LocalUser -Name $user.Name -AccountNeverExpires $true
+#             Set-LocalUser -Name $user.Name -Enabled $false
+#             # Generate a random 64 character password
+#             $password = [System.Web.Security.Membership]::GeneratePassword(64, 0)
+#             # Set the password to the random password
+#             Set-LocalUser -Name $user.Name -Password (ConvertTo-SecureString $password -AsPlainText -Force)
+#             Set-LocalUser -Name $user.Name -UserMayNotChangePassword $true
+#             Set-LocalUser -Name $user.Name -PasswordRequired $true
+#             Set-LocalUser -Name $user.Name -Description "Disabled for security reasons"
+#             Set-LocalUser -Name $user.Name -UserMayNotChangePassword $true
+
+#             Write-Host "--------------------------------------------------------------------------------"
+#             Write-Host "Sign-in for user $($user.Name) has been disabled."
+#             Write-Host "--------------------------------------------------------------------------------"
+#         }
+#     } catch {
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#         Write-Host "An error occurred: $_"
+#         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+#     }
+# }
+
+# # Monitor jobs
+# while ($global:jobs.Count -gt 0) {
+#     foreach ($job in $global:jobs) {
+#         if ($job.State -eq 'Completed') {
+#             Write-Host "$(Get-Date -Format 'HH:mm:ss') - $($job.Name) has completed."
+#             $job | Receive-Job
+#             Remove-Job -Job $job
+#             $global:jobs = $global:jobs | Where-Object { $_.Id -ne $job.Id }
+#         }
+#     }
+#     Start-Sleep -Seconds 5
+# }
+
+# Write-Host "All jobs have completed."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # Import necessary modules
+# Import-Module -Name Microsoft.PowerShell.LocalAccounts
+# Import-Module -Name NetSecurity
+# Import-Module -Name BitsTransfer
+
+# # Create directories
+# $ccdcPath = "C:\CCDC"
+# $toolsPath = "$ccdcPath\tools-Windows"
+# mkdir $ccdcPath -wait
+
+# mkdir "$ccdcPath\DNS" -wait
+
+# mkdir "C:\CCDC\tools-Windows" -wait
+
+# # Download the install script
+# $installScriptPath = "$toolsPath\Installs.ps1"
+# Write-Host "Downloading install script..."
+# Invoke-WebRequest "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Windows/Installs.ps1" -OutFile $installScriptPath
+
+# # Download necessary tools
+# $tools = @(
+#     @{ Name = "Npcap Installer"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/npcap-1.80.exe"; Path = "$toolsPath\npcap-1.80.exe" },
+#     @{ Name = "Firefox Installer"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/Firefox%20Installer.exe"; Path = "$toolsPath\FirefoxInstaller.exe" },
+#     @{ Name = "ClamAV Installer Part 1"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/setup_part.1"; Path = "$toolsPath\setup_part.1" },
+#     @{ Name = "ClamAV Installer Part 2"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/setup_part.2"; Path = "$toolsPath\setup_part.2" },
+#     @{ Name = "Wireshark Installer"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/Wireshark-4.4.3-x64.exe"; Path = "$toolsPath\Wireshark-4.4.3-x64.exe" },
+#     @{ Name = "Autoruns"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/Autoruns.zip"; Path = "$toolsPath\Autoruns.zip" },
+#     @{ Name = "ProcessExplorer"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/ProcessExplorer.zip"; Path = "$toolsPath\ProcessExplorer.zip" },
+#     @{ Name = "ProcessMonitor"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/ProcessMonitor.zip"; Path = "$toolsPath\ProcessMonitor.zip" },
+#     @{ Name = "TCPView"; Url = "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Resources/TCPView.zip"; Path = "$toolsPath\TCPView.zip" }
+# )
+
+# foreach ($tool in $tools) {
+#     Write-Host "Downloading $($tool.Name)..."
+#     Start-BitsTransfer -Source $tool.Url -Destination $tool.Path
+# }
+# $destPrefix = "$toolsPath\setup_part"
+# # Verify the split
+# $part1Bytes = [System.IO.File]::ReadAllBytes("$destPrefix.1")
+# $part2Bytes = [System.IO.File]::ReadAllBytes("$destPrefix.2")
+# $part1Bytes.Length, $part2Bytes.Length 
+
+# # Combine the parts back into a single file
+# $combinedFile = "$toolsPath\combined.msi"
+# $combinedBytes = [byte[]]::new($part1Bytes.Length + $part2Bytes.Length)
+# [System.Array]::Copy($part1Bytes, 0, $combinedBytes, 0, $part1Bytes.Length)
+# [System.Array]::Copy($part2Bytes, 0, $combinedBytes, $part1Bytes.Length, $part2Bytes.Length)
+# [System.IO.File]::WriteAllBytes($combinedFile, $combinedBytes)
+
+# # Verify the combined file
+# $combinedBytes = [System.IO.File]::ReadAllBytes($combinedFile)
+# $combinedBytes.Length, $totalSize
+
+# # Check if PSWindowsUpdate is installed, if not, install it
+# if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
+#     Write-Host "PSWindowsUpdate module not found. Installing..."
+#     Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser
+# }
+
+# Import-Module -Name PSWindowsUpdate
+
+# # Ask the user if it is the scored 2019 box
+# $server = Read-Host "Does this server have AD/DNS? (yes/no)"
+
+# # Ask the user if they want to run the setup
+# $runSetup = Read-Host "Do you want to run the setup? (yes/no)"
+# if ($runSetup -ne "yes") {
+#     Write-Host "Skipping setup..."
+#     goto installs
+# }
+
+# Write-Host "Synchronizing system time..."
+# Start-Job -ScriptBlock { w32tm /resync }
+
+# # Prompt for new administrator password and confirmation
+# do {
+#     $newAdminPassword = Read-Host -AsSecureString "Enter new password for the local administrator account"
+#     $confirmAdminPassword = Read-Host -AsSecureString "Confirm new password for the local administrator account"
+
+#     $newAdminPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($newAdminPassword))
+#     $confirmAdminPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($confirmAdminPassword))
+
+#     if ($newAdminPasswordPlain -ne $confirmAdminPasswordPlain) {
+#         Write-Host "Passwords do not match. Please try again."
+#     }
+# } while ($newAdminPasswordPlain -ne $confirmAdminPasswordPlain)
+
+# # Change local administrator password
+# $adminAccount = Get-LocalUser -Name "Administrator"
+# Set-LocalUser -Name $adminAccount -Password $newAdminPassword
+
+# # Rename administrator account for security
+# # $newAdminName = Read-Host "Enter a new name for the administrator account"
+# # Rename-LocalUser -Name "Administrator" -NewName $newAdminName
+# # Write-Host "Administrator account renamed to $newAdminName."
+
+# # List all user accounts
+# Write-Host "Listing all user accounts:"
+# Get-LocalUser | Format-Table -Property Name, Enabled, LastLogon
+
+# # Disable guest account
+# $guestAccount = Get-LocalUser -Name "Guest"
+# if ($guestAccount.Enabled) {
+#     Disable-LocalUser -Name "Guest"
+#     Write-Host "Guest account has been disabled."
+# } else {
+#     Write-Host "Guest account is already disabled."
+# }
+
+# # Set strong password policies
+# Write-Host "Setting strong password policies..."
+# Start-Job -ScriptBlock { net accounts /minpwlen:12 /maxpwage:30 /minpwage:1 /uniquepw:5 /lockoutthreshold:5 }
+
+# # Disable unnecessary services
+# $servicesToDisable = @("Spooler", "RemoteRegistry", "Fax")
+# foreach ($service in $servicesToDisable) {
+#     Start-Job -ScriptBlock {
+#         param ($service)
+#         Write-Host "Disabling service: $service"
+#         Stop-Service -Name $service -Force
+#         Set-Service -Name $service -StartupType Disabled
+#     } -ArgumentList $service
+# }
+
+# # Enable Windows Defender with real-time protection and PUA protection
+# Write-Host "Enabling Windows Defender and configuring protection settings..."
+# Start-Job -ScriptBlock {
+#     Set-MpPreference -DisableRealtimeMonitoring $false
+#     Set-MpPreference -PUAProtection Enabled
+# }
+
+# # Enable Windows Firewall with basic rules
+# Write-Host "Configuring Windows Firewall..."
+# Start-Job -ScriptBlock {
+#     # Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+#     # Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow
+    
+#     # Export existing Firewall
+#     Export-WindowsFirewallRules -FilePath "$ccdcPath\firewall.old"
+#     Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+#     # Block by default
+#     Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Block
+#     Set-NetFirewallProfile -Profile Domain,Public,Private -NotifyOnListen True
+#     # Enable Logging
+#     Set-NetFirewallProfile -Profile Domain,Public,Private -LogFileName "$ccdcPath\pfirewall.log" -LogMaxSizeKilobytes 8192 -LogAllowed True -LogBlocked True
+#     Set-NetFirewallSetting -StatefulFtp Disable
+#     Set-NetFirewallSetting -StatefulPptp Disable
+    
+#     # Disable existing rules
+#     Get-NetFirewallRule | Set-NetFirewallRule -Enabled False
+    
+#     # Firewall inbound rules
+#     New-NetFirewallRule -DisplayName "NTP in" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 123 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "Allow Pings in" -Direction Inbound -Action Allow -Enabled True -Protocol ICMPv4 -IcmpType 8
+#     New-NetFirewallRule -DisplayName "DNS IN (UDP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "DNS IN (TCP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "LDAP TCP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "LDAP UDP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "LDAP Global Catalog IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 3268 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "NETBIOS Resolution IN" -Direction Inbound -Action Allow -Program "System" -Enabled True -Profile Any -LocalPort 138 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "Secure LDAP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 636 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "Secure LDAP Global Catalog IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 3269 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "RPC IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort RPC -Protocol TCP
+#     New-NetFirewallRule -DisplayName "RPC-EPMAP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort RPC-EPMap -Protocol TCP
+#     New-NetFirewallRule -DisplayName "DHCP UDP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort 67,68 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "RPC for DNS IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -LocalPort RPC -Protocol TCP
+
+#     # Outbound rules
+#     New-NetFirewallRule -DisplayName "Allow Pings out" -Direction Outbound -Action Allow -Enabled True -Protocol ICMPv4 -IcmpType 8
+#     New-NetFirewallRule -DisplayName "Splunk OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 8000,8089,9997 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "Web OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 80,443 -Protocol TCP
+#     New-NetFirewallRule -DisplayName "NTP OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 123 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "Active Directory TCP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -Protocol TCP
+#     New-NetFirewallRule -DisplayName "Active Directory UDP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -Protocol UDP
+#     New-NetFirewallRule -DisplayName "DNS TCP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -Protocol TCP
+#     New-NetFirewallRule -DisplayName "DNS UDP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -Protocol UDP
+#     New-NetFirewallRule -DisplayName "DNS OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 53 -Protocol UDP
+#     New-NetFirewallRule -DisplayName "DHCP" -Direction Outbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort 68 -RemotePort 67 -Protocol UDP
+# }
+
+# # Disable SMBv1 to mitigate vulnerabilities
+# Write-Host "Disabling SMBv1 protocol..."
+# Start-Job -ScriptBlock {
+#     Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+#     Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+# }
+
+# # Configure Remote Desktop settings (disable if not needed)
+# Write-Host "Disabling Remote Desktop Protocol..."
+# Start-Job -ScriptBlock {
+#     Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1
+# }
+
+# # Set account lockout policies
+# Write-Host "Configuring account lockout policies..."
+# Start-Job -ScriptBlock { net accounts /lockoutthreshold:5 /lockoutduration:30 /lockoutwindow:30 }
+
+# # Enable audit policies for key events
+# Write-Host "Enabling audit policies for login and account management..."
+# Start-Job -ScriptBlock {
+#     AuditPol.exe /set /subcategory:"Logon" /success:enable /failure:enable
+#     AuditPol.exe /set /subcategory:"Account Management" /success:enable /failure:enable
+# }
+
+# # Remove unnecessary network shares
+# Write-Host "Removing unnecessary network shares..."
+# Start-Job -ScriptBlock {
+#     Get-SmbShare | Where-Object { $_.Name -ne "ADMIN$" -and $_.Name -ne "C$" } | ForEach-Object {
+#         Write-Host "Removing share: $($_.Name)"
+#         Remove-SmbShare -Name $_.Name -Force
+#     }
+# }
+
+# # Enable Windows Firewall (reaffirm if previously configured)
+# Write-Host "Reaffirming Windows Firewall enabled..."
+# Start-Job -ScriptBlock {
+#     Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+# }
+
+# # Disable IPv6 if not needed
+# Write-Host "Disabling IPv6..."
+# Start-Job -ScriptBlock {
+#     Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6
+#     Set-NetIPv6Protocol -State Disabled
+# }
+
+# # Ensure Windows Update is set to automatic
+# Write-Host "Setting Windows Update to automatic..."
+# Start-Job -ScriptBlock {
+#     Set-Service -Name wuauserv -StartupType Automatic
+#     Write-Host "Checking for Windows updates..."
+#     Install-WindowsUpdate -AcceptAll -Install
+# }
+
+# # Secure and backup DNS
+# Write-Host "Securing DNS..."
+# Get-DNSServerZone
+# $zone = Read-Host "Enter the DNS zone used by the scoring engine"
+# Start-Job -ScriptBlock {
+#     dnscmd.exe /Config /SocketPoolSize 10000
+#     dnscmd.exe /Config /CacheLockingPercent 100
+#     dnscmd.exe /ZoneExport $zone $toolsPath
+# }
+
+# # Additional security measures
+# # Write-Host "Enabling Secure Boot..."
+# # Start-Job -ScriptBlock { Confirm-SecureBootUEFI }
+# Write-Host "Configuring Windows Defender Exploit Guard..."
+# Start-Job -ScriptBlock { Set-MpPreference -EnableControlledFolderAccess Enabled }
+
+# # Write-Host "Enabling BitLocker for drive encryption..."
+# # Start-Job -ScriptBlock { Enable-BitLocker -MountPoint "C:" -EncryptionMethod XtsAes256 -UsedSpaceOnly -TpmProtector }
+
+# Write-Host "Configuring Network Level Authentication for Remote Desktop..."
+# Start-Job -ScriptBlock { Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 }
+
+# Write-Host "Disabling LM and NTLMv1 protocols..."
+# Start-Job -ScriptBlock { Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name "LmCompatibilityLevel" -Value 5 }
+
+# Write-Host "Enabling Windows Defender Credential Guard..."
+# Start-Job -ScriptBlock {
+#     Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard' -Name "EnableVirtualizationBasedSecurity" -Value 1
+#     Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name "LsaCfgFlags" -Value 1
+# }
+
+# Write-Host "Configuring Windows Update to install updates automatically..."
+# Start-Job -ScriptBlock { Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name "AUOptions" -Value 4 }
+
+# Write-Host "Enabling logging for PowerShell..."
+# Start-Job -ScriptBlock {
+#     Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging' -Name "EnableScriptBlockLogging" -Value 1
+#     Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription' -Name "EnableTranscripting" -Value 1
+# }
+
+# # Ask the user if they want to run the installs
+# $runInstalls = Read-Host "Do you want to run the installs? (yes/no)"
+# if ($runInstalls -ne "yes") {
+#     Write-Host "Skipping installs..."
+#     exit
+# }
+# else {
+#     # Set the installer script run on start
+#     $scriptPath = "$toolsPath\Installs.ps1"
+#     $entryName = "MyStartupScript"
+#     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $entryName -Value "powershell.exe -File `"$scriptPath`""
+# }
+
+# Write-Host "Performing a quick scan with Windows Defender..."
+# Start-Job -ScriptBlock { Start-MpScan -ScanType QuickScan }
+
+# Write-Host "Basic security checks and configurations are complete."
+# Write-Host "Please review if there are Windows updates available."
+
+# # Wait for all jobs to complete
+# Get-Job | Wait-Job
+
+# Write-Host "Restarting Computer"
+# Restart-Computer
+
 # Import necessary modules
 Import-Module -Name Microsoft.PowerShell.LocalAccounts
 Import-Module -Name NetSecurity
@@ -72,11 +780,6 @@ mkdir "C:\CCDC\tools-Windows"
 $installScriptPath = "$toolsPath\Installs.ps1"
 Write-Host "Downloading install script..."
 Invoke-WebRequest "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Windows/Installs.ps1" -OutFile $installScriptPath
-
-# Download the update script
-$installScriptPath = "$toolsPath\Win-Update.ps1"
-Write-Host "Downloading install script..."
-Invoke-WebRequest "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Windows/Win-Update.ps1" -OutFile $installScriptPath
 
 # Download necessary tools
 $tools = @(
@@ -621,8 +1324,6 @@ Start-LoggedJob -JobName "Create Alert for New Startup Items" -ScriptBlock {
 }
 
 # Lockdown the CCDC folder
-
-# Lockdown the CCDC folder
 Start-LoggedJob -JobName "Lockdown CCDC Folder" -ScriptBlock {
     try {
         $ccdcPath = "C:\CCDC"
@@ -636,17 +1337,12 @@ Start-LoggedJob -JobName "Lockdown CCDC Folder" -ScriptBlock {
         $adminUser = [System.Security.Principal.NTAccount]"Administrator"
         $systemUser = [System.Security.Principal.NTAccount]"SYSTEM"
         $trustedInstaller = [System.Security.Principal.NTAccount]"NT SERVICE\TrustedInstaller"
-        $currentUser = [System.Security.Principal.NTAccount]::new([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
-        
         $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule($adminUser, "FullControl", "Allow")
         $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule($systemUser, "FullControl", "Allow")
         $trustedInstallerRule = New-Object System.Security.AccessControl.FileSystemAccessRule($trustedInstaller, "FullControl", "Allow")
-        $currentUserRule = New-Object System.Security.AccessControl.FileSystemAccessRule($currentUser, "FullControl", "Allow")
-        
         $acl.AddAccessRule($adminRule)
         $acl.AddAccessRule($systemRule)
         $acl.AddAccessRule($trustedInstallerRule)
-        $acl.AddAccessRule($currentUserRule)
         
         # Apply the modified ACL to the CCDC folder
         Set-Acl -Path $ccdcPath -AclObject $acl
@@ -1321,6 +2017,7 @@ Start-LoggedJob -JobName "Configure Secure GPO" -ScriptBlock {
             $gpo = New-GPO -Name $gpoName
         }
 
+        
                 # Define configurations
                 $configurations = @{
                     "Prevent Windows from Storing LAN Manager Hash" = @{
@@ -1972,10 +2669,9 @@ Start-LoggedJob -JobName "Configure Secure GPO" -ScriptBlock {
                 } else {
                     Write-Host "All configurations applied successfully." -ForegroundColor Green
                 }
-                # ensuring that group policy is not applied while an windows update is occuring, should be applied manually
-                # (Ask me how I know!)
-                # Write-Host "Applying gpupdate across all machines on the domain" -ForegroundColor Magenta
-                # Global-Gpupdate
+
+                Write-Host "Applying gpupdate across all machines on the domain" -ForegroundColor Magenta
+                Global-Gpupdate
             } catch {
                 Write-Host $_.Exception.Message -ForegroundColor Yellow
                 Write-Host "Error Occurred..."
@@ -2042,6 +2738,21 @@ else {
     $entryName = "MyStartupScript"
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $entryName -Value "powershell.exe -File `"$scriptPath`""
 }
+
+# # Monitor jobs
+# while ($global:jobs.Count -gt 0) {
+#     foreach ($job in $global:jobs) {
+#         if ($job.State -eq 'Completed') {
+#             Write-Host "$(Get-Date -Format 'HH:mm:ss') - $($job.Name) has completed."
+#             $job | Receive-Job
+#             Remove-Job -Job $job
+#             $global:jobs = $global:jobs | Where-Object { $_.Id -ne $job.Id }
+#         }
+#     }
+#     Start-Sleep -Seconds 5
+# }
+
+
 
 Write-Host "All jobs have completed or maximum wait time exceeded."
 # Wait for all jobs to complete
