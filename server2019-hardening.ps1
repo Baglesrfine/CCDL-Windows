@@ -1,16 +1,5 @@
 Write-Host "2019 hardening script"
 
-# Ask the user if they want to run the setup
-$runSetup = Read-Host "Do you want to run the setup? (yes/no)"
-if ($runSetup -ne "yes") {
-    Write-Host "Skipping setup..."
-    goto installs
-}
-# Print out all DNS zones
-Get-DNSServerZone
-# Ask the user for the DNS zone
-$zone = Read-Host "Enter the DNS zone used by the scoring engine"
-
 # Initialize the global jobs array
 $global:jobs = @()
 
@@ -24,8 +13,6 @@ function Start-LoggedJob {
     $global:jobs += @($job)  # Ensure the job is added as an array element
     Write-Host "Started job: $JobName"
 }
-
-
 
 # Sync system time
 Start-LoggedJob -JobName "Synchronize System Time" -ScriptBlock {
@@ -116,12 +103,6 @@ Start-LoggedJob -JobName "Configure Windows Firewall" -ScriptBlock {
         New-NetFirewallRule -DisplayName "Allow Pings in" -Direction Inbound -Action Allow -Enabled True -Protocol ICMPv4 -IcmpType 8
         New-NetFirewallRule -DisplayName "DNS IN (UDP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol UDP
         New-NetFirewallRule -DisplayName "DNS IN (TCP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol TCP
-        New-NetFirewallRule -DisplayName "LDAP TCP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol TCP
-        New-NetFirewallRule -DisplayName "LDAP UDP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol UDP
-        New-NetFirewallRule -DisplayName "LDAP Global Catalog IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 3268 -Protocol TCP
-        New-NetFirewallRule -DisplayName "NETBIOS Resolution IN" -Direction Inbound -Action Allow -Program "System" -Enabled True -Profile Any -LocalPort 138 -Protocol UDP
-        New-NetFirewallRule -DisplayName "Secure LDAP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 636 -Protocol TCP
-        New-NetFirewallRule -DisplayName "Secure LDAP Global Catalog IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 3269 -Protocol TCP
         New-NetFirewallRule -DisplayName "RPC IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort RPC -Protocol TCP
         New-NetFirewallRule -DisplayName "RPC-EPMAP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort RPC-EPMap -Protocol TCP
         New-NetFirewallRule -DisplayName "DHCP UDP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\svchost.exe" -Enabled True -Profile Any -LocalPort 67,68 -Protocol UDP
@@ -132,8 +113,6 @@ Start-LoggedJob -JobName "Configure Windows Firewall" -ScriptBlock {
         New-NetFirewallRule -DisplayName "Splunk OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 8000,8089,9997 -Protocol TCP
         New-NetFirewallRule -DisplayName "Web OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 80,443 -Protocol TCP
         New-NetFirewallRule -DisplayName "NTP OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 123 -Protocol UDP
-        New-NetFirewallRule -DisplayName "Active Directory TCP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -Protocol TCP
-        New-NetFirewallRule -DisplayName "Active Directory UDP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -Protocol UDP
         New-NetFirewallRule -DisplayName "DNS TCP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -Protocol TCP
         New-NetFirewallRule -DisplayName "DNS UDP OUT" -Direction Outbound -Action Allow -Program "C:\Windows\System32\dns.exe" -Enabled True -Profile Any -Protocol UDP
         New-NetFirewallRule -DisplayName "DNS OUT" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 53 -Protocol UDP
@@ -280,45 +259,6 @@ Start-LoggedJob -JobName "Install Windows Updates" -ScriptBlock {
     }
 }
 
-# Secure and backup DNS to ccdc folder
-Start-LoggedJob -JobName "Secure and Backup DNS" -ScriptBlock {
-    try {
-        dnscmd.exe /Config /SocketPoolSize 10000
-        dnscmd.exe /Config /CacheLockingPercent 100
-        dnscmd.exe /ZoneExport $zone "$ccdcPath\DNS\$zone.dns"
-        Write-Host "--------------------------------------------------------------------------------"
-        Write-Host "DNS secured and backed up."
-        Write-Host "--------------------------------------------------------------------------------"
-    } catch {
-        Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-        Write-Host "An error occurred while securing and backing up DNS: $_"
-        Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-    }
-}
-
-# Backup AD
-Start-LoggedJob -JobName "Backup Active Directory" -ScriptBlock {
-    try {
-        $timestamp = Get-Date -Format "yyyyMMddHHmmss"
-        $backupRoot = "$ccdcPath\AD"
-        $backupPath = "$backupRoot\ADBackup_$timestamp"
-
-        if (-Not (Test-Path -Path $backupRoot)) {
-            mkdir $backupRoot
-        }
-
-        mkdir $backupPath
-        ntdsutil.exe "activate instance ntds" "ifm" "create full $backupPath" quit quit
-        Write-Host "--------------------------------------------------------------------------------"
-        Write-Host "Active Directory backed up to $backupPath."
-        Write-Host "--------------------------------------------------------------------------------"
-    } catch {
-        Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-        Write-Host "An error occurred while backing up Active Directory: $_"
-        Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-    }
-}
-
 # Create alert for new startup items, create toast notification when new startup item is created, check every 5 seconds, this should be run as a scheduled task
 Start-LoggedJob -JobName "Create Alert for New Startup Items" -ScriptBlock {
     try {
@@ -362,8 +302,6 @@ Start-LoggedJob -JobName "Create Alert for New Startup Items" -ScriptBlock {
         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
     }
 }
-
-# Lockdown the CCDC folder
 
 # Lockdown the CCDC folder
 Start-LoggedJob -JobName "Lockdown CCDC Folder" -ScriptBlock {
@@ -414,12 +352,6 @@ try {
         @{Name="Allow Pings in"; Protocol="ICMPv4"},
         @{Name="DNS IN (UDP)"; Port=53; Protocol="UDP"},
         @{Name="DNS IN (TCP)"; Port=53; Protocol="TCP"},
-        @{Name="LDAP TCP IN"; Port="389,636,3268,3269,135,1024-65535,49152-65535,88,464,53,123,445,135,137-139,389-636,3268-3269,135-135,1024-65535,49152-65535,88-88,464-464,53-53,123-123,445-445"; Protocol="TCP"},
-        @{Name="LDAP UDP IN"; Port="389,636,3268,3269,135,1024-65535,49152-65535,88,464,53,123,445,135,137-139,389-636,3268-3269,135-135,1024-65535,49152-65535,88-88,464-464,53-53,123-123,445-445"; Protocol="UDP"},
-        @{Name="LDAP Global Catalog IN"; Port=3268; Protocol="TCP"},
-        @{Name="NETBIOS Resolution IN"; Port=137; Protocol="UDP"},
-        @{Name="Secure LDAP IN"; Port=636; Protocol="TCP"},
-        @{Name="Secure LDAP Global Catalog IN"; Port=3269; Protocol="TCP"},
         @{Name="RPC IN"; Port=135; Protocol="TCP"},
         @{Name="RPC-EPMAP IN"; Port=135; Protocol="TCP"},
         @{Name="DHCP UDP IN"; Port=67; Protocol="UDP"}
@@ -916,31 +848,6 @@ Start-LoggedJob -JobName "Enable UAC" -ScriptBlock {
     }
 }
 
-Start-LoggedJob -JobName "Harden IIS" -ScriptBlock {
-    try {
-        $iisCmds = @(
-            "C:\windows\system32\inetsrv\appcmd.exe set config /section:requestfiltering /requestLimits.maxQueryString:2048",
-            "C:\windows\system32\inetsrv\appcmd.exe set config /section:requestfiltering /allowHighBitCharacters:false",
-            "C:\windows\system32\inetsrv\appcmd.exe set config /section:requestfiltering /allowDoubleEscaping:false",
-            "C:\windows\system32\inetsrv\appcmd.exe set config /section:requestfiltering /+verbs.[verb='TRACE',allowed='false']",
-            "C:\windows\system32\inetsrv\appcmd.exe set config /section:requestfiltering /fileExtensions.allowunlisted:false",
-            "C:\windows\system32\inetsrv\appcmd.exe set config /section:handlers /accessPolicy:Read",
-            "C:\windows\system32\inetsrv\appcmd.exe set config -section:system.webServer/security/isapiCgiRestriction /notListedIsapisAllowed:false",
-            "C:\windows\system32\inetsrv\appcmd.exe set config -section:system.webServer/security/isapiCgiRestriction /notListedCgisAllowed:false"
-        )
-        foreach ($cmd in $iisCmds) {
-            Invoke-Expression $cmd
-        }
-        Write-Host "--------------------------------------------------------------------------------"
-        Write-Host "IIS hardened."
-        Write-Host "--------------------------------------------------------------------------------"
-    } catch {
-        Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-        Write-Host "An error occurred while hardening IIS: $_"
-        Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-    }
-}
-
 Start-LoggedJob -JobName "Patch Mimikatz" -ScriptBlock {
     try {
         $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest"
@@ -956,7 +863,6 @@ Start-LoggedJob -JobName "Patch Mimikatz" -ScriptBlock {
         Write-Host "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
     }
 }
-
 Start-LoggedJob -JobName "Patch DCSync Vulnerability" -ScriptBlock {
     try {
         Import-Module ActiveDirectory

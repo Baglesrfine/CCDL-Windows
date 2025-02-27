@@ -1,11 +1,5 @@
 Write-Host "AD hardening script"
 
-# Ask the user if they want to run the setup
-$runSetup = Read-Host "Do you want to run the setup? (yes/no)"
-if ($runSetup -ne "yes") {
-    Write-Host "Skipping setup..."
-    goto installs
-}
 # Print out all DNS zones
 Get-DNSServerZone
 # Ask the user for the DNS zone
@@ -24,8 +18,6 @@ function Start-LoggedJob {
     $global:jobs += @($job)  # Ensure the job is added as an array element
     Write-Host "Started job: $JobName"
 }
-
-
 
 # Sync system time
 Start-LoggedJob -JobName "Synchronize System Time" -ScriptBlock {

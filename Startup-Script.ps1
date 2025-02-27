@@ -113,18 +113,10 @@ else {
     & "$toolsPath\consumner-windows-hardening.ps1"
 }
 
-# Ask the user if they want to run the installs
-$runInstalls = Read-Host "Do you want to run the installs? (yes/no)"
-if ($runInstalls -ne "yes") {
-    Write-Host "Skipping installs..."
-    exit
-}
-else {
-    # Set the installer script run on start
-    $scriptPath = "$toolsPath\Installs.ps1"
-    $entryName = "MyStartupScript"
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $entryName -Value "powershell.exe -File `"$scriptPath`""
-}
+# Set the installer script run on start
+$scriptPath = "$toolsPath\Installs.ps1"
+$entryName = "MyStartupScript"
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $entryName -Value "powershell.exe -File `"$scriptPath`""
 
 Write-Host "All jobs have completed or maximum wait time exceeded."
 # Wait for all jobs to complete
