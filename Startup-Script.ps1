@@ -92,24 +92,24 @@ Import-Module -Name PSWindowsUpdate
 # Get what Windows is running
 $productName = (Get-ComputerInfo).WindowsProductName
 if ($productName -eq "Windows Server 2019 Standard") {
-    if ($adFeature.Installed) {
+    if ((Get-WindowsFeature -Name AD-Domain-Services).installed) {
         # Download hardening script
-        $ScriptPath = "$toolsPath\ad-securing.ps1"
+        $ScriptPath = "$toolsPath\ad-hardening.ps1"
         Write-Host "Downloading hardening script..."
-        Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/master/ad-securing.ps1/" -OutFile $ScriptPath
+        Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/main/ad-hardening.ps1" -OutFile $ScriptPath
         & "$toolsPath\ad-hardening.ps1"
     } else {
         # Download hardening script
         $ScriptPath = "$toolsPath\server2019-hardening.ps1"
         Write-Host "Downloading hardening script..."
-        Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/master/server2019-hardening.ps1/" -OutFile $ScriptPath
+        Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/main/server2019-hardening.ps1" -OutFile $ScriptPath
         & "$toolsPath\server2019-hardening.ps1"
     }
 }
 else {
     $ScriptPath = "$toolsPath\consumner-windows-hardening.ps1"
     Write-Host "Downloading hardening script..."
-    Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/master/consumner-windows-hardening.ps1/" -OutFile $ScriptPath
+    Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/main/consumner-windows-hardening.ps1" -OutFile $ScriptPath
     & "$toolsPath\consumner-windows-hardening.ps1"
 }
 
