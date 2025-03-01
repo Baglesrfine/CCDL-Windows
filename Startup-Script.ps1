@@ -10,7 +10,11 @@ $startupRegistryPaths = @(
     "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run",
     "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce",
     "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
-    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce"
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce",
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
+    "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows\Run",
+    "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Windows\Run"
 )
 
 foreach ($path in $startupRegistryPaths) {
@@ -38,7 +42,19 @@ foreach ($folder in $startupFolders) {
     }
 }
 
-Write-Host "All startup items have been cleared."
+# Clear scheduled tasks
+Write-Host "Clearing scheduled tasks..."
+Get-ScheduledTask | Where-Object { $_.TaskPath -notlike "\Microsoft\*" } | ForEach-Object {
+    Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false
+}
+
+# Clear services set to auto-start
+Write-Host "Clearing auto-start services..."
+Get-Service | Where-Object { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" } | ForEach-Object {
+    Set-Service -Name $_.Name -StartupType Disabled
+}
+
+Write-Host "All startup items, scheduled tasks, and auto-start services have been cleared."
 
 # Prompt for new administrator password and confirmation
 try {
