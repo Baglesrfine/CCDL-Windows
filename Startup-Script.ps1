@@ -15,8 +15,13 @@ $startupRegistryPaths = @(
 
 foreach ($path in $startupRegistryPaths) {
     Write-Host "Clearing startup items from $path"
-    Get-ItemProperty -Path $path | ForEach-Object {
-        Remove-ItemProperty -Path $path -Name $_.PSChildName -ErrorAction SilentlyContinue
+    $items = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
+    if ($items) {
+        $items.PSObject.Properties | ForEach-Object {
+            if ($_.Name -ne "PSPath" -and $_.Name -ne "PSParentPath" -and $_.Name -ne "PSChildName" -and $_.Name -ne "PSDrive" -and $_.Name -ne "PSProvider") {
+                Remove-ItemProperty -Path $path -Name $_.Name -ErrorAction SilentlyContinue
+            }
+        }
     }
 }
 
@@ -34,7 +39,6 @@ foreach ($folder in $startupFolders) {
 }
 
 Write-Host "All startup items have been cleared."
-
 
 # Prompt for new administrator password and confirmation
 try {
