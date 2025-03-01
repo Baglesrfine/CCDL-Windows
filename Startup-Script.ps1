@@ -3,6 +3,39 @@ Import-Module -Name Microsoft.PowerShell.LocalAccounts
 Import-Module -Name NetSecurity
 Import-Module -Name BitsTransfer
 
+# Clear startup items from registry
+$startupRegistryPaths = @(
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run",
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce",
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run",
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce",
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce"
+)
+
+foreach ($path in $startupRegistryPaths) {
+    Write-Host "Clearing startup items from $path"
+    Get-ItemProperty -Path $path | ForEach-Object {
+        Remove-ItemProperty -Path $path -Name $_.PSChildName -ErrorAction SilentlyContinue
+    }
+}
+
+# Clear startup items from startup folders
+$startupFolders = @(
+    "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup",
+    "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
+)
+
+foreach ($folder in $startupFolders) {
+    Write-Host "Clearing startup items from $folder"
+    Get-ChildItem -Path $folder | ForEach-Object {
+        Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host "All startup items have been cleared."
+
+
 # Prompt for new administrator password and confirmation
 try {
     do {
