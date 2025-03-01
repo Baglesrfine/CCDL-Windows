@@ -48,11 +48,14 @@ Get-ScheduledTask | Where-Object { $_.TaskPath -notlike "\Microsoft\*" } | ForEa
     Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false
 }
 
-# Clear services set to auto-start
-Write-Host "Clearing auto-start services..."
-Get-Service | Where-Object { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" } | ForEach-Object {
-    Set-Service -Name $_.Name -StartupType Disabled
-}
+# Prevent users from adding scheduled tasks into the \Microsoft\* directory
+Write-Host "Setting permissions to prevent users from adding scheduled tasks into the \Microsoft\* directory..."
+$taskSchedulerPath = "C:\Windows\System32\Tasks\Microsoft"
+icacls $taskSchedulerPath /inheritance:r
+icacls $taskSchedulerPath /deny "Everyone:(OI)(CI)W"
+icacls $taskSchedulerPath /grant "BUILTIN\Administrators:(OI)(CI)F"
+
+Write-Host "Permissions set to prevent users from adding scheduled tasks into the \Microsoft\* directory, except for Administrators."
 
 Write-Host "All startup items, scheduled tasks, and auto-start services have been cleared."
 
