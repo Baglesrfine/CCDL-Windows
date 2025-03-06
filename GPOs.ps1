@@ -60,7 +60,7 @@ foreach ($gpoFolder in $gpoFolders) {
         Write-Host "Importing GPO: $gpoName"
         New-GPO -Name $gpoFolder.Name
         $gpoId = (Get-GPO -Name $gpoFolder.Name).Id
-        Import-GPO -BackupId $gpoId -Path $toolsPath -TargetGuid $gpoId
+        Import-GPO -BackupId $gpoId -Path $gpoFolder.Path -TargetGuid $gpoId
     }
 }
 
