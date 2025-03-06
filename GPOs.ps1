@@ -19,7 +19,7 @@ foreach ($tool in $tools) {
 # Unzip the GPOs
 foreach ($tool in $tools) {
     if ($tool.Path -like "*.zip") {
-        $destinationPath = [System.IO.Path]::GetDirectoryName($tool.Path)
+        $destinationPath = "$([System.IO.Path]::GetDirectoryName($tool.Path))\$($tool.Name)"
         Write-Host "Extracting $($tool.Name) to $destinationPath..."
         Expand-Archive -Path $tool.Path -DestinationPath $destinationPath -Force
     }
@@ -28,22 +28,39 @@ foreach ($tool in $tools) {
 # Define the path to the specific GPO folder
 #$gpoFolder = "$env:TEMP\DoD_GPOs\DoD WinSvr 2019 MS and DC v3r2\GPOs"
 #$wmiFilterFolder = "$env:TEMP\DoD_GPOs\DoD WinSvr 2019 MS and DC v3r2\WMI Filter"
-$gpoFolders = @(
-    @{ Name = 'Defender' Path = "$toolsPath\Defender-gpos"},
-    @{ Name = 'Firefox' Path = "$toolsPath\Firefox-gpos"},
-    @{ Name = 'Edge' Path = "$toolsPath\MS-Edge-gpos"},
-    @{ Name = 'Windows 10' Path = "$toolsPath\Windows-10-gpos"},
-    @{ Name = 'Windows 2019' Path = "$toolsPath\Windows-2019-gpos"}
-)
+$gpoFolders = @()
+
+# Select the GPOs based on the OS
+$productName = (Get-ComputerInfo).WindowsProductName
+if ($productName -eq "Windows Server 2019 Standard") {
+    if ((Get-WindowsFeature -Name AD-Domain-Services).installed) {
+        $gpoFolders = @(
+            @{ Name = 'Defender'; Path = "$toolsPath\Windows Defender GPOs"},
+            @{ Name = 'Firefox'; Path = "$toolsPath\Firefox GPOs"},
+            @{ Name = 'Edge'; Path = "$toolsPath\Edge GPOs"},
+            @{ Name = 'Windows 2019'; Path = "$toolsPath\Windows 2019 GPOs"}
+        )
+    }
+}
+else {
+    $gpoFolders = @(
+        @{ Name = 'Defender'; Path = "$toolsPath\Windows Defender GPOs"},
+        @{ Name = 'Firefox'; Path = "$toolsPath\Firefox GPOs"},
+        @{ Name = 'Edge'; Path = "$toolsPath\Edge GPOs"},
+        @{ Name = 'Windows 2019'; Path = "$toolsPath\Windows 2019 GPOs"}
+    )
+}
 
 # Import the GPOs
 Write-Host "Importing DoD GPOs..."
-foreach (gpoFolder in gpoFolders) {
+foreach ($gpoFolder in $gpoFolders) {
     $gpoSubFolders = Get-ChildItem -Path $gpoFolder.Path -Directory
     foreach ($gpoSubFolder in $gpoSubFolders) {
         $gpoName = $gpoSubFolder.Name
         Write-Host "Importing GPO: $gpoName"
-        Import-GPO -BackupGpoName $gpoName -Path $gpoSubFolder.FullName
+        New-GPO -Name $gpoFolder.Name
+        $gpoId = (Get-GPO -Name $gpoFolder.Name).Id
+        Import-GPO -BackupId $gpoId -Path $toolsPath -TargetGuid $gpoId
     }
 }
 
