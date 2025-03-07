@@ -86,12 +86,9 @@ try {
 }
 
 
-# Create directories
+# Set directories
 $ccdcPath = "C:\CCDC"
 $toolsPath = "$ccdcPath\tools-Windows"
-mkdir $ccdcPath 
-mkdir "$ccdcPath\DNS" 
-mkdir "C:\CCDC\tools-Windows" 
 
 # Download the install script
 $installScriptPath = "$toolsPath\Installs.ps1"
@@ -152,20 +149,20 @@ if ($productName -eq "Windows Server 2019 Standard") {
         # Download hardening script
         $ScriptPath = "$toolsPath\ad-hardening.ps1"
         Write-Host "Downloading hardening script..."
-        Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/main/ad-hardening.ps1" -OutFile $ScriptPath
+        Invoke-WebRequest "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Windows/" -OutFile $ScriptPath
         & "$toolsPath\ad-hardening.ps1"
     } else {
         # Download hardening script
         $ScriptPath = "$toolsPath\server2019-hardening.ps1"
         Write-Host "Downloading hardening script..."
-        Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/main/server2019-hardening.ps1" -OutFile $ScriptPath
+        Invoke-WebRequest "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Windows/" -OutFile $ScriptPath
         & "$toolsPath\server2019-hardening.ps1"
     }
 }
 else {
     $ScriptPath = "$toolsPath\consumner-windows-hardening.ps1"
     Write-Host "Downloading hardening script..."
-    Invoke-WebRequest "https://github.com/Baglesrfine/CCDL-Windows/raw/refs/heads/main/consumner-windows-hardening.ps1" -OutFile $ScriptPath
+    Invoke-WebRequest "https://github.com/UWStout-CCDC/CCDC-scripts/raw/refs/heads/master/windows/CCDL-Windows/consumer-windows-hardening.ps1" -OutFile $ScriptPath
     & "$toolsPath\consumner-windows-hardening.ps1"
 }
 
@@ -178,6 +175,8 @@ Write-Host "All jobs have completed or maximum wait time exceeded."
 # Wait for all jobs to complete
 Get-Job | Wait-Job
 Write-Host "All jobs have completed."
+$entryName = "StartupScript"
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $entryName
 # Restart the computer
 Write-Host "--------------------------------------------------------------------------------"
 Write-Host "Restarting Computer"
