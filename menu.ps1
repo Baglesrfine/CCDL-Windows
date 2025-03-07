@@ -1,5 +1,4 @@
 Function Show-Menu {
-    Clear-Host
     Write-Host "====================="
     Write-Host " DNS and AD Management Menu"
     Write-Host "====================="
