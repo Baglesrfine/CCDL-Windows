@@ -106,6 +106,7 @@ Start-LoggedJob -JobName "Configure Windows Firewall" -ScriptBlock {
         # Firewall inbound rules
         New-NetFirewallRule -DisplayName "NTP in" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 123 -Protocol UDP
         New-NetFirewallRule -DisplayName "Allow Pings in" -Direction Inbound -Action Allow -Enabled True -Protocol ICMPv4 -IcmpType 8
+        New-NetFirewallRule -DisplayName "Splunk IN" -Direction Outbound -Action Allow -Enabled True -Profile Any -RemotePort 8000,8089,9997 -Protocol TCP
         New-NetFirewallRule -DisplayName "DNS IN (UDP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol UDP
         New-NetFirewallRule -DisplayName "DNS IN (TCP)" -Direction Inbound -Action Allow -Enabled True -Profile Any -LocalPort 53 -Protocol TCP
         New-NetFirewallRule -DisplayName "LDAP TCP IN" -Direction Inbound -Action Allow -Program "C:\Windows\System32\lsass.exe" -Enabled True -Profile Any -LocalPort 389 -Protocol TCP
@@ -406,6 +407,7 @@ try {
         @{Name="Allow Pings in"; Protocol="ICMPv4"},
         @{Name="DNS IN (UDP)"; Port=53; Protocol="UDP"},
         @{Name="DNS IN (TCP)"; Port=53; Protocol="TCP"},
+        @{Name="Splunk IN"; Port=8000,8089,9997; Protocol="UDP"},
         @{Name="LDAP TCP IN"; Port="389,636,3268,3269,135,1024-65535,49152-65535,88,464,53,123,445,135,137-139,389-636,3268-3269,135-135,1024-65535,49152-65535,88-88,464-464,53-53,123-123,445-445"; Protocol="TCP"},
         @{Name="LDAP UDP IN"; Port="389,636,3268,3269,135,1024-65535,49152-65535,88,464,53,123,445,135,137-139,389-636,3268-3269,135-135,1024-65535,49152-65535,88-88,464-464,53-53,123-123,445-445"; Protocol="UDP"},
         @{Name="LDAP Global Catalog IN"; Port=3268; Protocol="TCP"},
