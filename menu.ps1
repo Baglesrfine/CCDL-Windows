@@ -256,7 +256,7 @@ Function Restore-AdUsers {
                        -Name $user.Name `
                        -UserPrincipalName $user.UserPrincipalName `
                        -Path $user.DistinguishedName `
-                       -Enabled $user.Enabled `
+                       -Enabled $true `
                        -Description $user.Description `
                        -PassThru
 
@@ -370,6 +370,17 @@ Function Get-And-Disable-AdUsers {
         Write-Host "ERROR: Failed to disable user $userToDisable. $_" -ForegroundColor Red
     }
 }
+
+# inital preparation
+Install-PackageProvider -Name NuGet -Force
+
+# Register the PowerShell Gallery as package repository if it is missing for any reason.
+if($null -eq (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+    Register-PSRepository -Default
+    }
+
+    # Download the DSInternals PowerShell module.
+    Install-Module -Name DSInternals -Force
 
 Function Confirm-Action {
     param (
