@@ -166,6 +166,7 @@ Function Backup-DnsZones {
 }
 
 Function Backup-AdUsers {
+    Import-Module DSInternals
     $backupPath = "C:\AD_Backups"
     $logFile = "$backupPath\BackupLog.txt"
     $backupFile = "$backupPath\UsersBackup_$(Get-Date -Format 'yyyyMMdd_HHmm').csv"
@@ -175,19 +176,6 @@ Function Backup-AdUsers {
         param ([string]$message)
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         "$timestamp - $message" | Tee-Object -FilePath $logFile -Append
-    }
-
-    Write-Log "Checking required modules..."
-    if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
-        Write-Log "Active Directory module not found. Attempting to install..."
-        Try {
-            Install-WindowsFeature -Name "RSAT-AD-PowerShell" -IncludeAllSubFeature -ErrorAction Stop
-            Import-Module ActiveDirectory
-            Write-Log "Active Directory module installed successfully."
-        } Catch {
-            Write-Log "ERROR: Failed to install Active Directory module. $_"
-            return
-        }
     }
 
     # Ensure backup directory exists
@@ -202,12 +190,29 @@ Function Backup-AdUsers {
         }
     }
 
-    # Export users to CSV
-    Write-Log "Starting AD user backup..."
+    # Export users and password hashes
+    Write-Log "Backing up AD users and password hashes..."
     Try {
-        Get-ADUser -Filter * -Properties * | 
-            Select-Object SamAccountName,GivenName,Surname,Name,UserPrincipalName,DistinguishedName,Enabled,Description |
-            Export-Csv -Path $backupFile -NoTypeInformation -Force
+        $users = Get-ADUser -Filter * -Properties SamAccountName, GivenName, Surname, Name, UserPrincipalName, DistinguishedName, Enabled, Description
+
+        $backupData = @()
+
+        foreach ($user in $users) {
+            $ntHash = (Get-ADReplAccount -SamAccountName $user.SamAccountName -Server (Get-ADDomainController).HostName).NTHash
+            $backupData += [PSCustomObject]@{
+                SamAccountName    = $user.SamAccountName
+                GivenName         = $user.GivenName
+                Surname           = $user.Surname
+                Name              = $user.Name
+                UserPrincipalName = $user.UserPrincipalName
+                DistinguishedName = $user.DistinguishedName
+                Enabled           = $user.Enabled
+                Description       = $user.Description
+                NTLMHash          = $ntHash
+            }
+        }
+
+        $backupData | Export-Csv -Path $backupFile -NoTypeInformation -Force
         Write-Log "Backup completed successfully. File saved at $backupFile"
     } Catch {
         Write-Log "ERROR: Failed to backup users. $_"
@@ -217,6 +222,7 @@ Function Backup-AdUsers {
 }
 
 Function Restore-AdUsers {
+    Import-Module DSInternals
     $backupPath = "C:\AD_Backups"
     $logFile = "$backupPath\RestoreLog.txt"
     $latestBackup = Get-ChildItem -Path $backupPath -Filter "UsersBackup_*.csv" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -228,31 +234,14 @@ Function Restore-AdUsers {
         "$timestamp - $message" | Tee-Object -FilePath $logFile -Append
     }
 
-    Write-Log "Checking required modules..."
-    if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
-        Write-Log "Active Directory module not found. Attempting to install..."
-        Try {
-            Install-WindowsFeature -Name "RSAT-AD-PowerShell" -IncludeAllSubFeature -ErrorAction Stop
-            Import-Module ActiveDirectory
-            Write-Log "Active Directory module installed successfully."
-        } Catch {
-            Write-Log "ERROR: Failed to install Active Directory module. $_"
-            return
-        }
-    }
-
-    # Ensure backup file exists
     if (-not $latestBackup) {
-        Write-Log "ERROR: No backup file found in $backupPath. Restore aborted."
+        Write-Log "ERROR: No backup file found. Restore aborted."
         return
     }
 
     Write-Log "Using backup file: $($latestBackup.FullName)"
-
-    # Import user data
     $users = Import-Csv $latestBackup.FullName
 
-    # Restore users
     foreach ($user in $users) {
         Try {
             # Check if user already exists
@@ -272,7 +261,10 @@ Function Restore-AdUsers {
                        -Description $user.Description `
                        -PassThru
 
-            Write-Log "Restored user: $($user.SamAccountName)"
+            # Restore password hash
+            $hashBytes = [Convert]::FromBase64String($user.NTLMHash)
+            Set-SamAccountPasswordHash -SamAccountName $user.SamAccountName -NTHash $hashBytes -Server (Get-ADDomainController).HostName
+            Write-Log "Restored user: $($user.SamAccountName) with original password."
         } Catch {
             Write-Log "ERROR: Failed to restore user '$($user.SamAccountName)'. $_"
         }
